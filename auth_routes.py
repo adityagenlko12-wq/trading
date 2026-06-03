@@ -736,3 +736,674 @@ def api_mobile_register():
         }
     }
     return jsonify(response_data), 400
+
+
+# =============================================================================
+# LARAVEL COMPATIBILITY ENDPOINTS FOR FLUTTER MOBILE APP
+# =============================================================================
+
+import asyncio
+import concurrent.futures
+from datetime import datetime
+import pytz
+
+def run_async_in_new_loop(async_func, *args, **kwargs):
+    """Run an async function in a new event loop inside a separate thread to prevent loop closed issues."""
+    def run_in_thread():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(async_func(*args, **kwargs))
+        finally:
+            loop.close()
+            
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(run_in_thread)
+        return future.result(timeout=15)
+
+
+@auth_bp.route('/api/trade/<symbol_id>', methods=['GET'])
+@login_required
+def api_trade_symbol_details(symbol_id):
+    """API: Get trading details for a symbol (Laravel compatibility)."""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({"status": "error", "message": {"error": ["Unauthorized"]}}), 401
+            
+        wallet_mgr = get_wallet_manager()
+        from performance_manager import get_performance_manager
+        db_mgr = get_performance_manager()
+        
+        # Resolve quote
+        async def fetch_quote(sym):
+            from data_fetcher import UpstoxDataFetcher
+            fetcher = UpstoxDataFetcher()
+            try:
+                from index_config import AVAILABLE_INDICES
+                query_sym = AVAILABLE_INDICES.get(sym).symbol if sym in AVAILABLE_INDICES else sym
+                quotes = await fetcher.get_stock_quotes([query_sym])
+                return quotes[0] if quotes else None
+            except Exception:
+                return None
+            finally:
+                await fetcher.close()
+                
+        quote = None
+        try:
+            quote = run_async_in_new_loop(fetch_quote, symbol_id)
+        except Exception:
+            pass
+            
+        price = 100.0
+        change = 0.0
+        pct = 0.0
+        volume = 0
+        company_name = symbol_id
+        
+        if quote:
+            price = quote.get('ltp', 100.0)
+            change = quote.get('day_change', 0.0)
+            pct = quote.get('percentage_change', 0.0)
+            volume = quote.get('volume') or 0
+            company_name = quote.get('company_name') or symbol_id
+        else:
+            # Fallback for indices if API fails
+            if symbol_id == 'NIFTY':
+                price = 23433.70
+                company_name = "NIFTY 50"
+            elif symbol_id == 'SENSEX':
+                price = 74415.52
+                company_name = "BSE SENSEX"
+            elif symbol_id == 'BANKNIFTY':
+                price = 54186.15
+                company_name = "NIFTY Bank"
+            elif symbol_id == 'FINNIFTY':
+                price = 24100.20
+                company_name = "NIFTY Financial Services"
+            elif symbol_id == 'MIDCPNIFTY':
+                price = 12150.80
+                company_name = "NIFTY Midcap Select"
+                
+        # Get user holdings for this symbol
+        holdings = db_mgr.get_holdings(user['email'])
+        h_item = next((h for h in holdings if h['symbol'] == symbol_id), None)
+        holding_qty = float(h_item['quantity']) if h_item else 0.0
+        
+        # User cash balance
+        cash_balance = wallet_mgr.get_balance(user['email'])
+        
+        response_data = {
+            "status": "success",
+            "remark": "trade_details",
+            "message": {
+                "success": ["Trade details loaded successfully"]
+            },
+            "data": {
+                "pair": {
+                    "id": 1,
+                    "symbol": f"{symbol_id}/INR",
+                    "coin": {
+                        "id": 1,
+                        "symbol": symbol_id,
+                        "name": company_name,
+                        "image_path": ""
+                    },
+                    "market": {
+                        "id": 1,
+                        "name": "INR",
+                        "currency": {
+                            "id": 1,
+                            "symbol": "INR",
+                            "name": "Indian Rupee",
+                            "image_path": ""
+                        }
+                    },
+                    "market_data": {
+                        "id": "1",
+                        "price": str(price),
+                        "percent_change_1h": str(pct),
+                        "percent_change_24h": str(pct),
+                        "market_cap": str(volume * price),
+                        "html_classes": {
+                            "percent_change_1h": "up" if pct >= 0 else "down",
+                            "percent_change_24h": "up" if pct >= 0 else "down"
+                        }
+                    },
+                    "percent_charge_for_buy": "0",
+                    "percent_charge_for_sell": "0",
+                    "minimum_buy_amount": "1",
+                    "maximum_buy_amount": "100000000",
+                    "minimum_sell_amount": "1",
+                    "maximum_sell_amount": "100000000",
+                    "listed_market_name": "INR",
+                    "coin_id": "1",
+                    "market_id": "1"
+                },
+                "is_favorite": "0",
+                "coin_wallet": {
+                    "id": 1,
+                    "user_type": "user",
+                    "wallet_type": "spot",
+                    "balance": str(holding_qty),
+                    "currency": {
+                        "id": 1,
+                        "symbol": symbol_id,
+                        "name": company_name
+                    }
+                },
+                "market_currency_wallet": {
+                    "id": 2,
+                    "user_type": "user",
+                    "wallet_type": "spot",
+                    "balance": f"{cash_balance:.2f}",
+                    "currency": {
+                        "id": 1,
+                        "symbol": "INR",
+                        "name": "Indian Rupee"
+                    }
+                }
+            }
+        }
+        return jsonify(response_data)
+    except Exception as e:
+        return jsonify({"status": "error", "message": {"error": [str(e)]}}), 500
+
+
+@auth_bp.route('/api/trade/order/book/<symbol_id>', methods=['GET'])
+@login_required
+def api_trade_order_book(symbol_id):
+    """API: Get mock live order book for a symbol around its current price."""
+    try:
+        # Resolve LTP
+        async def fetch_quote(sym):
+            from data_fetcher import UpstoxDataFetcher
+            fetcher = UpstoxDataFetcher()
+            try:
+                from index_config import AVAILABLE_INDICES
+                query_sym = AVAILABLE_INDICES.get(sym).symbol if sym in AVAILABLE_INDICES else sym
+                quotes = await fetcher.get_stock_quotes([query_sym])
+                return quotes[0] if quotes else None
+            except Exception:
+                return None
+            finally:
+                await fetcher.close()
+                
+        quote = None
+        try:
+            quote = run_async_in_new_loop(fetch_quote, symbol_id)
+        except Exception:
+            pass
+            
+        price = 100.0
+        if quote:
+            price = quote.get('ltp', 100.0)
+        else:
+            if symbol_id == 'NIFTY':
+                price = 23433.70
+            elif symbol_id == 'SENSEX':
+                price = 74415.52
+            elif symbol_id == 'BANKNIFTY':
+                price = 54186.15
+            elif symbol_id == 'FINNIFTY':
+                price = 24100.20
+            elif symbol_id == 'MIDCPNIFTY':
+                price = 12150.80
+                
+        import random
+        buy_orders = []
+        sell_orders = []
+        
+        for i in range(5):
+            b_price = price - (i + 1) * (0.05 if price < 500 else 1.0)
+            b_qty = round(random.uniform(10, 500), 1)
+            buy_orders.append({
+                "id": i + 1,
+                "user_id": "0",
+                "pair_id": "1",
+                "coin_id": "1",
+                "trx": "MOCK",
+                "order_side": "1",
+                "order_type": "1",
+                "rate": f"{b_price:.2f}",
+                "price": f"{b_price:.2f}",
+                "amount": str(b_qty),
+                "total": f"{b_price * b_qty:.2f}",
+                "filled_amount": "0.0",
+                "filed_percentage": "0.0",
+                "charge": "0.0",
+                "status": "open",
+                "created_at": "",
+                "updated_at": ""
+            })
+            
+            s_price = price + (i + 1) * (0.05 if price < 500 else 1.0)
+            s_qty = round(random.uniform(10, 500), 1)
+            sell_orders.append({
+                "id": 10 + i + 1,
+                "user_id": "0",
+                "pair_id": "1",
+                "coin_id": "1",
+                "trx": "MOCK",
+                "order_side": "2",
+                "order_type": "1",
+                "rate": f"{s_price:.2f}",
+                "price": f"{s_price:.2f}",
+                "amount": str(s_qty),
+                "total": f"{s_price * s_qty:.2f}",
+                "filled_amount": "0.0",
+                "filed_percentage": "0.0",
+                "charge": "0.0",
+                "status": "open",
+                "created_at": "",
+                "updated_at": ""
+            })
+            
+        return jsonify({
+            "status": "success",
+            "remark": "order_book",
+            "message": {"success": ["Order book loaded"]},
+            "data": {
+                "buy_side_orders": buy_orders,
+                "sell_side_orders": sell_orders
+            }
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": {"error": [str(e)]}}), 500
+
+
+@auth_bp.route('/api/trade/history/<symbol_id>', methods=['GET'])
+@login_required
+def api_trade_history(symbol_id):
+    """API: Get mock recent public trades for a symbol around its current price."""
+    try:
+        # Resolve LTP
+        async def fetch_quote(sym):
+            from data_fetcher import UpstoxDataFetcher
+            fetcher = UpstoxDataFetcher()
+            try:
+                from index_config import AVAILABLE_INDICES
+                query_sym = AVAILABLE_INDICES.get(sym).symbol if sym in AVAILABLE_INDICES else sym
+                quotes = await fetcher.get_stock_quotes([query_sym])
+                return quotes[0] if quotes else None
+            except Exception:
+                return None
+            finally:
+                await fetcher.close()
+                
+        quote = None
+        try:
+            quote = run_async_in_new_loop(fetch_quote, symbol_id)
+        except Exception:
+            pass
+            
+        price = 100.0
+        if quote:
+            price = quote.get('ltp', 100.0)
+        else:
+            if symbol_id == 'NIFTY':
+                price = 23433.70
+            elif symbol_id == 'SENSEX':
+                price = 74415.52
+            elif symbol_id == 'BANKNIFTY':
+                price = 54186.15
+            elif symbol_id == 'FINNIFTY':
+                price = 24100.20
+            elif symbol_id == 'MIDCPNIFTY':
+                price = 12150.80
+                
+        import random
+        from datetime import datetime as dt, timedelta
+        trades = []
+        
+        for i in range(10):
+            t_price = price + random.uniform(-5.0, 5.0)
+            t_qty = round(random.uniform(5, 200), 1)
+            trade_time = (dt.now() - timedelta(seconds=i*15)).strftime("%Y-%m-%d %H:%M:%S")
+            trades.append({
+                "id": i + 1,
+                "order_id": str(1000 + i),
+                "pair_id": "1",
+                "amount": str(t_qty),
+                "rate": f"{t_price:.2f}",
+                "trade_side": str(random.choice([1, 2])),
+                "created_at": trade_time,
+                "updated_at": trade_time,
+                "formatted_date": trade_time
+            })
+            
+        return jsonify({
+            "status": "success",
+            "remark": "trade_history",
+            "data": {
+                "trades": trades
+            }
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": {"error": [str(e)]}}), 500
+
+
+@auth_bp.route('/api/trade/order/list/<symbol_id>', methods=['GET'])
+@login_required
+def api_trade_order_list(symbol_id):
+    """API: Get active/open orders for a specific symbol."""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({"status": "error", "message": {"error": ["Unauthorized"]}}), 401
+            
+        from performance_manager import get_performance_manager
+        db_mgr = get_performance_manager()
+        
+        positions = db_mgr.get_active_positions(user['email'])
+        symbol_positions = [p for p in positions if p['symbol'] == symbol_id]
+        
+        orders_data = []
+        for p in symbol_positions:
+            orders_data.append({
+                "id": str(p['id']),
+                "amount": str(p['quantity']),
+                "rate": str(p['entry_price']),
+                "order_side": "1" if p['signal_type'] in ["BUY", "CALL"] else "2",
+                "order_type": "2",
+                "status": "open",
+                "trx": f"TX{p['id']}",
+                "total": str(p['entry_price'] * p['quantity']),
+                "filled_amount": "0",
+                "created_at": p['entry_time'],
+                "pair": {"symbol": f"{p['symbol']}/INR"}
+            })
+            
+        return jsonify({
+            "status": "success",
+            "remark": "open_orders",
+            "message": {"success": ["Open orders loaded"]},
+            "data": {
+                "orders": {
+                    "current_page": 1,
+                    "next_page_url": None,
+                    "data": orders_data
+                }
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": {"error": [str(e)]}
+        }), 500
+
+
+@auth_bp.route('/api/order/save/<symbol_id>', methods=['POST'])
+@login_required
+def api_save_order(symbol_id):
+    """API: Place a buy/sell order for stock or index."""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({"status": "error", "message": {"error": ["Unauthorized"]}}), 401
+            
+        data = request.json or request.values or {}
+        rate_str = data.get('rate')
+        amount_str = data.get('amount')
+        order_side = str(data.get('order_side', '1')) # '1' for BUY, '2' for SELL
+        
+        try:
+            quantity = int(float(amount_str))
+        except (ValueError, TypeError):
+            return jsonify({"status": "error", "message": {"error": ["Invalid quantity (amount)"]}}), 400
+            
+        try:
+            price = float(rate_str)
+        except (ValueError, TypeError):
+            return jsonify({"status": "error", "message": {"error": ["Invalid price (rate)"]}}), 400
+            
+        if quantity <= 0:
+            return jsonify({"status": "error", "message": {"error": ["Quantity must be greater than zero"]}}), 400
+            
+        if price <= 0:
+            async def get_ltp():
+                from data_fetcher import UpstoxDataFetcher
+                fetcher = UpstoxDataFetcher()
+                try:
+                    from index_config import AVAILABLE_INDICES
+                    query_sym = AVAILABLE_INDICES.get(symbol_id).symbol if symbol_id in AVAILABLE_INDICES else symbol_id
+                    quotes = await fetcher.get_stock_quotes([query_sym])
+                    return quotes[0]['ltp'] if quotes else 0.0
+                except Exception:
+                    return 0.0
+                finally:
+                    await fetcher.close()
+            try:
+                price = run_async_in_new_loop(get_ltp)
+            except Exception:
+                pass
+            if price <= 0:
+                price = 100.0
+                
+        signal_type = "BUY" if order_side == '1' else "SELL"
+        
+        from virtual_trader import get_virtual_trader
+        trader = get_virtual_trader()
+        
+        success, msg = trader.place_user_order(
+            user_email=user['email'],
+            symbol=symbol_id,
+            type_str="STOCK",
+            signal_type=signal_type,
+            strike=0,
+            price=price,
+            quantity=quantity,
+            lot_size=1
+        )
+        
+        if success:
+            return jsonify({
+                "status": "success",
+                "remark": "order_placed",
+                "message": {
+                    "success": ["Order placed successfully: " + msg]
+                }
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "remark": "order_failed",
+                "message": {
+                    "error": [msg]
+                }
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "remark": "server_error",
+            "message": {
+                "error": [str(e)]
+            }
+        }), 500
+
+
+@auth_bp.route('/api/order/cancel/<order_id>', methods=['POST'])
+@login_required
+def api_cancel_order(order_id):
+    """API: Cancel/Close an open order (active position)."""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({"status": "error", "message": {"error": ["Unauthorized"]}}), 401
+            
+        from virtual_trader import get_virtual_trader
+        trader = get_virtual_trader()
+        
+        try:
+            trade_id = int(order_id)
+        except ValueError:
+            return jsonify({"status": "error", "message": {"error": ["Invalid order ID"]}}), 400
+            
+        from performance_manager import get_performance_manager
+        db_mgr = get_performance_manager()
+        positions = db_mgr.get_active_positions(user['email'])
+        pos = next((p for p in positions if p['id'] == trade_id), None)
+        
+        if not pos:
+            return jsonify({"status": "error", "message": {"error": ["Order not found or already closed"]}}), 404
+            
+        async def get_ltp():
+            from data_fetcher import UpstoxDataFetcher
+            fetcher = UpstoxDataFetcher()
+            try:
+                from index_config import AVAILABLE_INDICES
+                query_sym = AVAILABLE_INDICES.get(pos['symbol']).symbol if pos['symbol'] in AVAILABLE_INDICES else pos['symbol']
+                quotes = await fetcher.get_stock_quotes([query_sym])
+                return quotes[0]['ltp'] if quotes else 0.0
+            except Exception:
+                return 0.0
+            finally:
+                await fetcher.close()
+                
+        price = 0.0
+        try:
+            price = run_async_in_new_loop(get_ltp)
+        except Exception:
+            pass
+        if price <= 0:
+            price = pos['entry_price']
+            
+        closed = trader.close_position(trade_id, price)
+        if closed:
+            return jsonify({
+                "status": "success",
+                "remark": "order_cancelled",
+                "message": {
+                    "success": ["Order cancelled/closed successfully"]
+                }
+            })
+        else:
+            return jsonify({"status": "error", "message": {"error": ["Failed to close order"]}}), 500
+            
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": {"error": [str(e)]}
+        }), 500
+
+
+@auth_bp.route('/api/order/<history_type>', methods=['GET'])
+@login_required
+def api_user_order_history(history_type):
+    """API: Get user order/trade history or open orders (global)."""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({"status": "error", "message": {"error": ["Unauthorized"]}}), 401
+            
+        from performance_manager import get_performance_manager
+        db_mgr = get_performance_manager()
+        
+        orders_data = []
+        if history_type == 'open':
+            positions = db_mgr.get_active_positions(user['email'])
+            for p in positions:
+                orders_data.append({
+                    "id": str(p['id']),
+                    "amount": str(p['quantity']),
+                    "rate": str(p['entry_price']),
+                    "order_side": "1" if p['signal_type'] in ["BUY", "CALL"] else "2",
+                    "order_type": "2",
+                    "status": "open",
+                    "trx": f"TX{p['id']}",
+                    "total": str(p['entry_price'] * p['quantity']),
+                    "filled_amount": "0",
+                    "created_at": p['entry_time'],
+                    "pair": {"symbol": f"{p['symbol']}/INR"}
+                })
+        else:
+            trades = db_mgr.get_user_trades(user['email'], limit=50)
+            for t in trades:
+                orders_data.append({
+                    "id": str(t['id']),
+                    "amount": str(t['quantity']),
+                    "rate": str(t.get('entry_price') or t.get('exit_price') or 0.0),
+                    "order_side": "1" if t['signal_type'] in ["BUY", "CALL"] else "2",
+                    "order_type": "2",
+                    "status": "completed",
+                    "trx": f"TX{t['id']}",
+                    "total": str((t.get('entry_price') or t.get('exit_price') or 0.0) * t['quantity']),
+                    "filled_amount": str(t['quantity']),
+                    "created_at": t.get('entry_time') or t.get('exit_time') or "",
+                    "pair": {"symbol": f"{t['symbol']}/INR"}
+                })
+                
+        return jsonify({
+            "status": "success",
+            "remark": "order_history",
+            "message": {"success": ["Orders loaded"]},
+            "data": {
+                "orders": {
+                    "current_page": 1,
+                    "next_page_url": None,
+                    "data": orders_data
+                }
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": {"error": [str(e)]}
+        }), 500
+
+
+@auth_bp.route('/api/general-setting', methods=['GET'])
+def api_general_setting():
+    """API: Mock general settings parameters expected by Flutter app."""
+    return jsonify({
+        "status": "success",
+        "remark": "general_setting",
+        "data": {
+            "general_setting": {
+                "sitename": "Dhan Trading",
+                "cur_text": "INR",
+                "cur_sym": "₹",
+                "active_template": "basic",
+                "kyc_rejection_reason": None,
+                "kyc_status": "1",
+                "profile_complete": "1"
+            }
+        }
+    })
+
+
+@auth_bp.route('/api/user-info', methods=['GET'])
+@login_required
+def api_user_info():
+    """API: Get user profile details (Laravel compatibility)."""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({"status": "error", "message": {"error": ["Unauthorized"]}}), 401
+            
+        name_parts = user.get('name', 'User').split(' ')
+        firstname = name_parts[0]
+        lastname = name_parts[1] if len(name_parts) > 1 else ""
+        
+        return jsonify({
+            "status": "success",
+            "remark": "user_info",
+            "data": {
+                "user": {
+                    "id": 1,
+                    "firstname": firstname,
+                    "lastname": lastname,
+                    "username": user.get('name', 'User'),
+                    "email": user.get('email', ''),
+                    "mobile": user.get('phone', '1234567890'),
+                    "kv": "1",
+                    "ev": "1",
+                    "sv": "1",
+                    "profile_complete": "1"
+                }
+            }
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": {"error": [str(e)]}}), 500
+

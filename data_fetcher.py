@@ -577,7 +577,8 @@ class UpstoxDataFetcher:
         for sym in symbols:
             if sym in symbol_to_stock:
                 keys_to_query.append(symbol_to_stock[sym]["key"])
-            elif sym.startswith("NSE_EQ|") or sym.startswith("NSE_INDEX|"):
+            elif (sym.startswith("NSE_EQ|") or sym.startswith("NSE_INDEX|") or 
+                  sym.startswith("BSE_EQ|") or sym.startswith("BSE_INDEX|")):
                 keys_to_query.append(sym)
                 
         if not keys_to_query:
@@ -587,14 +588,18 @@ class UpstoxDataFetcher:
         
         results = []
         for raw_key, quote_val in raw_quotes.items():
+            if not quote_val:
+                continue
             norm_key = raw_key.replace(":", "|")
             stock_info = key_to_stock.get(norm_key, {})
             
-            ohlc = quote_val.get("ohlc", {})
-            open_p = ohlc.get("open", 0.0)
-            last_price = quote_val.get("last_price", 0.0)
-            net_change = quote_val.get("net_change", 0.0)
+            ohlc = quote_val.get("ohlc") or {}
+            open_p = ohlc.get("open") or 0.0
+            last_price = quote_val.get("last_price") or 0.0
+            net_change = quote_val.get("net_change") or 0.0
             pct_change = (net_change / open_p * 100) if open_p > 0 else 0.0
+            
+            volume = quote_val.get("volume") or 0
             
             results.append({
                 "symbol": stock_info.get("symbol", norm_key.split("|")[-1]),
@@ -604,11 +609,11 @@ class UpstoxDataFetcher:
                 "day_change": net_change,
                 "percentage_change": pct_change,
                 "open": open_p,
-                "high": ohlc.get("high", 0.0),
-                "low": ohlc.get("low", 0.0),
-                "close": ohlc.get("close", 0.0),
-                "volume": quote_val.get("volume", 0),
-                "market_cap": (quote_val.get("volume", 0) * last_price)
+                "high": ohlc.get("high") or 0.0,
+                "low": ohlc.get("low") or 0.0,
+                "close": ohlc.get("close") or 0.0,
+                "volume": volume,
+                "market_cap": (volume * last_price)
             })
         return results
 

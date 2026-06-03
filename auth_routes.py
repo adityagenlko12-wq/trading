@@ -643,6 +643,7 @@ def api_mobile_login():
                     "ev": "1", # email verified
                     "sv": "1", # sms verified
                     "tv": "1", # 2FA verified
+                    "profile_complete": "1",
                     "profileComplete": "1"
                 },
                 "access_token": token,

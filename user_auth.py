@@ -98,8 +98,8 @@ class UserManager:
             "name": name,
             "phone": phone,
             "is_admin": False,
-            "is_approved": False,  # Needs admin approval
-            "subscription": "free",
+            "is_approved": True,  # Auto-approved for paper trading simulator
+            "subscription": "pro",
             "subscription_expires": None,
             "created_at": now.isoformat(),
             "last_login": None,
@@ -208,6 +208,15 @@ class UserManager:
         self.users[email]["subscription"] = "pro"
         self.save()
 
+    def update_profile(self, email: str, name: str, phone: str) -> bool:
+        """Update user profile information."""
+        if email in self.users:
+            self.users[email]["name"] = name
+            self.users[email]["phone"] = phone
+            self.save()
+            return True
+        return False
+
 
 class WalletManager:
     """Manages user wallets and transactions."""
@@ -234,11 +243,47 @@ class WalletManager:
     def create_wallet(self, email: str):
         """Create wallet for user."""
         if email not in self.wallets:
+            from performance_manager import get_performance_manager
+            db_mgr = get_performance_manager()
+            initial_balance = float(db_mgr.get_setting("initial_balance", 1000000.0))
+            
+            ist = pytz.timezone('Asia/Kolkata')
+            now = datetime.now(ist)
+            
             self.wallets[email] = {
-                "balance": 0,
-                "transactions": [],
+                "balance": initial_balance,
+                "transactions": [
+                    {
+                        "type": "credit",
+                        "amount": initial_balance,
+                        "description": "Initial Welcome Balance",
+                        "timestamp": now.isoformat()
+                    }
+                ],
             }
             self.save()
+
+    def reset_wallet(self, email: str):
+        """Reset wallet balance to the initial balance setting."""
+        from performance_manager import get_performance_manager
+        db_mgr = get_performance_manager()
+        initial_balance = float(db_mgr.get_setting("initial_balance", 1000000.0))
+        
+        ist = pytz.timezone('Asia/Kolkata')
+        now = datetime.now(ist)
+        
+        self.wallets[email] = {
+            "balance": initial_balance,
+            "transactions": [
+                {
+                    "type": "credit",
+                    "amount": initial_balance,
+                    "description": "Portfolio Reset",
+                    "timestamp": now.isoformat()
+                }
+            ],
+        }
+        self.save()
     
     def get_balance(self, email: str) -> float:
         """Get wallet balance."""
@@ -454,3 +499,13 @@ def init_admin():
     user_mgr = get_user_manager()
     user_mgr.create_admin("admin@trading.ai", "admin123", "Admin")
     print("Admin account created: admin@trading.ai / admin123")
+
+
+def reset_user_portfolio(email: str):
+    """Reset user's wallet balance to the initial setting and clear all open positions, holdings, and trades."""
+    # 1. Clear database portfolios
+    from performance_manager import get_performance_manager
+    get_performance_manager().clear_user_portfolio(email)
+    
+    # 2. Reset wallet balance
+    get_wallet_manager().reset_wallet(email)

@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 class GeminiAnalyzer:
     """AI-powered market analyzer using Google Gemini."""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, model: str = "gemini-1.5-flash"):
         self.api_key = api_key
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models"
-        self.model = "gemini-2.0-flash"  # Using Gemini 2.0 Flash
+        self.model = model
         self._session: Optional[aiohttp.ClientSession] = None
     
     async def _get_session(self) -> aiohttp.ClientSession:

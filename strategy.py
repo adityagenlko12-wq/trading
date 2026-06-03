@@ -167,7 +167,8 @@ class StrategyEngine:
             confidence_factors.append(0.2)
         
         # Generate signal if we have enough confidence
-        if len(confidence_factors) >= 2:  # At least 2 factors
+        min_factors = 1 if vwap is None else 2
+        if len(confidence_factors) >= min_factors:
             confidence = min(sum(confidence_factors), 1.0)
             return TradingSignal(
                 signal_type=SignalType.CALL,
@@ -224,7 +225,8 @@ class StrategyEngine:
             confidence_factors.append(0.2)
         
         # Generate signal if we have enough confidence
-        if len(confidence_factors) >= 2:  # At least 2 factors
+        min_factors = 1 if vwap is None else 2
+        if len(confidence_factors) >= min_factors:
             confidence = min(sum(confidence_factors), 1.0)
             return TradingSignal(
                 signal_type=SignalType.PUT,

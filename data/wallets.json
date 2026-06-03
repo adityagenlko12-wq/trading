@@ -1,6 +1,54 @@
 {
   "admin@trading.ai": {
-    "balance": 0,
-    "transactions": []
+    "balance": 949449.999999999,
+    "transactions": [
+      {
+        "type": "credit",
+        "amount": 1000000.0,
+        "description": "Portfolio Reset",
+        "timestamp": "2026-06-03T13:17:32.656423+05:30"
+      },
+      {
+        "type": "debit",
+        "amount": 75000,
+        "description": "Buy Order: NIFTY @ \u20b9100",
+        "timestamp": "2026-06-03T13:17:43.983217+05:30"
+      },
+      {
+        "type": "credit",
+        "amount": 80699.99999999891,
+        "description": "Exit Position: NIFTY CALL 23050 @ \u20b9107.59999999999854",
+        "timestamp": "2026-06-03T13:31:33.100299+05:30"
+      },
+      {
+        "type": "debit",
+        "amount": 75000,
+        "description": "Buy Order: NIFTY @ \u20b9100",
+        "timestamp": "2026-06-03T13:32:05.875365+05:30"
+      },
+      {
+        "type": "credit",
+        "amount": 93750.0,
+        "description": "Exit Position: NIFTY CALL 23100 @ \u20b9125.0",
+        "timestamp": "2026-06-03T13:48:07.890666+05:30"
+      },
+      {
+        "type": "debit",
+        "amount": 75000,
+        "description": "Buy Order: NIFTY @ \u20b9100",
+        "timestamp": "2026-06-03T13:49:39.627348+05:30"
+      }
+    ]
+  },
+  "integration_test@trading.ai": {
+    "balance": 1000000.0,
+    "transactions": [
+      {
+        "type": "credit",
+        "amount": 1000000.0,
+        "description": "Portfolio Reset",
+        "timestamp": "2026-06-03T12:16:00.138858+05:30"
+      }
+    ]
   }
 }

@@ -31,6 +31,8 @@ class StrikeData:
     put_volume: int
     call_ltp: float
     put_ltp: float
+    call_key: str = ""
+    put_key: str = ""
     call_iv: Optional[float] = None
     put_iv: Optional[float] = None
     call_oi_change: float = 0.0
@@ -128,7 +130,7 @@ class IndicatorCalculator:
         
         if total_volume == 0:
             logger.warning("Total volume is zero, cannot calculate VWAP")
-            return 0.0
+            return None
         
         vwap = total_tp_volume / total_volume
         logger.info(f"VWAP calculated: {vwap:.2f}")

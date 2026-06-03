@@ -39,11 +39,11 @@ class TelegramConfig:
 class TradingConfig:
     """Trading strategy parameters."""
     # PCR thresholds - BALANCED for more signals
-    pcr_bullish_threshold: float = 0.85  # PCR below this = bullish (was 0.7)
-    pcr_bearish_threshold: float = 1.05  # PCR above this = bearish (was 1.3)
+    pcr_bullish_threshold: float = 0.95  # PCR below this = bullish
+    pcr_bearish_threshold: float = 1.00  # PCR above this = bearish
     
     # OI change thresholds (percentage)
-    oi_change_significant: float = 5.0  # 5% change is significant
+    oi_change_significant: float = 2.0  # 2% change is significant
     
     # VWAP deviation threshold (percentage)
     vwap_deviation_threshold: float = 0.5  # 0.5% deviation from VWAP
@@ -61,10 +61,12 @@ class TradingConfig:
 @dataclass
 class SystemConfig:
     """System settings."""
-    refresh_interval_seconds: int = 60
+    refresh_interval_seconds: int = 30
     log_level: str = "INFO"
     log_file: str = "trading_system.log"
     data_snapshot_dir: str = "snapshots"
+    real_trading_enabled: bool = False
+    max_lots: int = 1
 
 
 @dataclass
@@ -72,8 +74,8 @@ class AIConfig:
     """AI/Gemini configuration."""
     api_key: str = ""
     enabled: bool = True
-    min_confidence: int = 55  # Minimum confidence to send alert
-    model: str = "gemini-1.5-flash"
+    min_confidence: int = 50  # Minimum confidence to send alert
+    model: str = "gemini-2.0-flash"
 
 
 # Load configuration from environment variables or use defaults
@@ -99,7 +101,10 @@ def load_config():
     )
     
     trading = TradingConfig()
-    system = SystemConfig()
+    system = SystemConfig(
+        real_trading_enabled=os.getenv("REAL_TRADING_ENABLED", "false").lower() == "true",
+        max_lots=int(os.getenv("MAX_LOTS", "1")),
+    )
     
     return upstox, telegram, trading, system, ai
 

@@ -229,6 +229,53 @@ class UpstoxDataFetcher:
                 return expiry
         
         return sorted_expiries[0] if sorted_expiries else None
+        
+    async def get_expiry_dates(self, option_prefix: str = "NIFTY") -> Tuple[Optional[str], List[str]]:
+        """
+        Get the nearest expiry date and all available sorted expiry dates.
+        
+        Args:
+            option_prefix: Option symbol prefix (NIFTY, BANKNIFTY, SENSEX, etc.)
+            
+        Returns:
+            Tuple of (nearest_expiry_date or None, list_of_all_expiries)
+        """
+        index_key = self.INDEX_SYMBOLS.get(option_prefix, self.nifty_index_key)
+        url = f"{self.base_url}/option/contract"
+        params = {"instrument_key": index_key}
+        
+        response = await self._make_request(url, params)
+        
+        if not response or "data" not in response:
+            logger.error(f"Failed to fetch option contracts for {option_prefix}")
+            return None, []
+        
+        contracts = response["data"]
+        if not contracts:
+            return None, []
+        
+        expiries = set()
+        for contract in contracts:
+            expiry = contract.get("expiry")
+            if expiry:
+                expiries.add(expiry)
+        
+        if not expiries:
+            return None, []
+        
+        sorted_expiries = sorted(expiries)
+        today = date.today().isoformat()
+        
+        nearest = None
+        for expiry in sorted_expiries:
+            if expiry >= today:
+                nearest = expiry
+                break
+                
+        if not nearest and sorted_expiries:
+            nearest = sorted_expiries[0]
+            
+        return nearest, sorted_expiries
     
     async def get_option_chain(
         self, 
@@ -288,6 +335,8 @@ class UpstoxDataFetcher:
                 put_volume=put_market_data.get("volume", 0),
                 call_ltp=call_market_data.get("ltp", 0.0),
                 put_ltp=put_market_data.get("ltp", 0.0),
+                call_key=call_options.get("instrument_key", ""),
+                put_key=put_options.get("instrument_key", ""),
                 call_iv=call_greeks.get("iv"),
                 put_iv=put_greeks.get("iv"),
             )
@@ -479,6 +528,89 @@ class UpstoxDataFetcher:
                 return last_price
         
         return 0.0
+
+    def get_top_stocks(self) -> List[Dict]:
+        """Load top 500+ NSE stocks list from JSON seed file."""
+        try:
+            import json
+            import os
+            # Match current working directory context or package path
+            json_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "top_500_stocks.json")
+            if os.path.exists(json_path):
+                with open(json_path, "r") as f:
+                    return json.load(f)
+            else:
+                # Fallback to local data/top_500_stocks.json
+                with open("data/top_500_stocks.json", "r") as f:
+                    return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading top stocks: {e}")
+            return []
+
+    async def get_quotes_batch(self, instrument_keys: List[str]) -> Dict[str, Dict]:
+        """Fetch quotes for a batch of instrument keys (comma-separated, max 25 per request)."""
+        if not instrument_keys:
+            return {}
+        
+        chunk_size = 25
+        all_quotes = {}
+        
+        for i in range(0, len(instrument_keys), chunk_size):
+            chunk = instrument_keys[i:i + chunk_size]
+            keys_str = ",".join(chunk)
+            url = f"{self.base_url}/market-quote/quotes"
+            params = {"instrument_key": keys_str}
+            
+            response = await self._make_request(url, params)
+            if response and "data" in response:
+                all_quotes.update(response["data"])
+                
+        return all_quotes
+
+    async def get_stock_quotes(self, symbols: List[str]) -> List[Dict]:
+        """Fetch real-time stock details for the given symbols."""
+        stocks = self.get_top_stocks()
+        key_to_stock = {s["key"]: s for s in stocks if s.get("key")}
+        symbol_to_stock = {s["symbol"]: s for s in stocks}
+        
+        keys_to_query = []
+        for sym in symbols:
+            if sym in symbol_to_stock:
+                keys_to_query.append(symbol_to_stock[sym]["key"])
+            elif sym.startswith("NSE_EQ|") or sym.startswith("NSE_INDEX|"):
+                keys_to_query.append(sym)
+                
+        if not keys_to_query:
+            return []
+            
+        raw_quotes = await self.get_quotes_batch(keys_to_query)
+        
+        results = []
+        for raw_key, quote_val in raw_quotes.items():
+            norm_key = raw_key.replace(":", "|")
+            stock_info = key_to_stock.get(norm_key, {})
+            
+            ohlc = quote_val.get("ohlc", {})
+            open_p = ohlc.get("open", 0.0)
+            last_price = quote_val.get("last_price", 0.0)
+            net_change = quote_val.get("net_change", 0.0)
+            pct_change = (net_change / open_p * 100) if open_p > 0 else 0.0
+            
+            results.append({
+                "symbol": stock_info.get("symbol", norm_key.split("|")[-1]),
+                "company_name": stock_info.get("name", ""),
+                "key": norm_key,
+                "ltp": last_price,
+                "day_change": net_change,
+                "percentage_change": pct_change,
+                "open": open_p,
+                "high": ohlc.get("high", 0.0),
+                "low": ohlc.get("low", 0.0),
+                "close": ohlc.get("close", 0.0),
+                "volume": quote_val.get("volume", 0),
+                "market_cap": (quote_val.get("volume", 0) * last_price)
+            })
+        return results
 
 
 # Synchronous wrapper for non-async contexts

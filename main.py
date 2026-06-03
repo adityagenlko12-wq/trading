@@ -32,6 +32,7 @@ from usage_monitor import get_usage_monitor
 from index_config import get_index_manager, IndexConfig
 from signal_tracker import get_signal_tracker
 from virtual_trader import get_virtual_trader
+from real_trader import get_real_trader
 
 # Import dashboard functions (optional)
 try:
@@ -71,6 +72,9 @@ class AITradingSystem:
         self.indicator_calc = IndicatorCalculator()
         self.strategy = StrategyEngine(self.indicator_calc)
         self.notifier = TelegramNotifier()
+        self.real_trader = get_real_trader()
+        self.real_trader.enabled = SYSTEM_CONFIG.real_trading_enabled
+        self.real_trader.max_lots = SYSTEM_CONFIG.max_lots
         
         # Index manager for multi-index support
         self.index_manager = get_index_manager()
@@ -78,8 +82,8 @@ class AITradingSystem:
         # AI Analyzer
         self.ai_analyzer = None
         if AI_CONFIG.enabled and AI_CONFIG.api_key:
-            self.ai_analyzer = GeminiAnalyzer(AI_CONFIG.api_key)
-            logger.info("🤖 AI Analyzer (Gemini) enabled")
+            self.ai_analyzer = GeminiAnalyzer(AI_CONFIG.api_key, model=AI_CONFIG.model)
+            logger.info(f"🤖 AI Analyzer (Gemini) enabled with model: {AI_CONFIG.model}")
         else:
             logger.warning("⚠️ AI Analyzer disabled - no API key or disabled in config")
         
@@ -187,6 +191,7 @@ class AITradingSystem:
 🤖 AI: {'Gemini Enabled' if self.ai_analyzer else 'Disabled'}
 🎯 Min Confidence: {AI_CONFIG.min_confidence}%
 ⏰ Interval: {SYSTEM_CONFIG.refresh_interval_seconds}s
+💰 <b>Real Trading: {'ENABLED (LIVE)' if SYSTEM_CONFIG.real_trading_enabled else 'Disabled (Virtual Only)'}</b>
 
 <i>System is now monitoring multiple indices...</i>
 """)
@@ -469,8 +474,8 @@ class AITradingSystem:
                 logger.info(f"   - {t.index} {t.signal_type} {t.strike}")
             
             # Prevent duplicate open trades for same strike/signal
-            is_open = virtual_trader.is_position_open(index_name, signal, entry_strike)
-            logger.info(f"🔍 is_position_open({index_name}, {signal}, {entry_strike}) = {is_open}")
+            is_open = virtual_trader.is_position_open("admin@trading.ai", index_name, signal)
+            logger.info(f"🔍 is_position_open(admin@trading.ai, {index_name}, {signal}) = {is_open}")
             
             if is_open:
                 logger.info(f"⏸️ Virtual position already open for {index_name} {signal} {entry_strike}")
@@ -510,6 +515,38 @@ class AITradingSystem:
                         }
                     )
                     logger.info(f"✅✅✅ VIRTUAL TRADE OPENED SUCCESSFULLY! ✅✅✅")
+
+                    # REAL TRADING EXECUTION
+                    if SYSTEM_CONFIG.real_trading_enabled:
+                        logger.info(f"⚡⚡⚡ ATTEMPTING REAL TRADE: {signal} {index_name} {entry_strike} ⚡⚡⚡")
+                        
+                        # Find instrument key
+                        instrument_key = ""
+                        if strikes_data and entry_strike > 0:
+                            for s in strikes_data:
+                                if s.strike_price == entry_strike:
+                                    instrument_key = s.call_key if signal == 'CALL' else s.put_key
+                                    break
+                        
+                        if instrument_key:
+                            # Get lot size for index
+                            from virtual_trader import LOT_SIZES
+                            base_lot_size = LOT_SIZES.get(index_name.upper().replace(" ", "").replace("50", "").replace("BANK", "BANKNIFTY"), 50)
+                            quantity = base_lot_size * SYSTEM_CONFIG.max_lots
+                            
+                            order_res = await self.real_trader.place_order(
+                                index=index_name,
+                                symbol=instrument_key,
+                                transaction_type="BUY",
+                                quantity=quantity
+                            )
+                            
+                            if order_res.get("status") == "success":
+                                await self.notifier.send_message(f"🚀 <b>REAL ORDER PLACED!</b>\n\n{signal} {index_name} {entry_strike}\nQuantity: {quantity}\nOrder ID: {order_res.get('data', {}).get('order_id')}")
+                            else:
+                                await self.notifier.send_message(f"❌ <b>REAL ORDER FAILED!</b>\n\n{signal} {index_name} {entry_strike}\nError: {order_res.get('message', 'Unknown error')}")
+                        else:
+                            logger.error(f"Could not find instrument key for {index_name} {signal} {entry_strike}")
                 except Exception as vt_error:
                     logger.error(f"❌❌❌ ERROR OPENING VIRTUAL TRADE: {vt_error} ❌❌❌")
                     import traceback
@@ -517,7 +554,7 @@ class AITradingSystem:
 
             # TELEGRAM ALERT NOTIFICATION LOGIC
             last_signal_time = self._last_signals.get(signal_key)
-            time_threshold = 600  # 10 minutes in seconds
+            time_threshold = 300  # 5 minutes in seconds
             
             should_send = (
                 last_signal_time is None or 
@@ -563,26 +600,42 @@ class AITradingSystem:
         # Clear old signals periodically
         if len(self._last_signals) > 100:
             self._last_signals.clear()
-    
+            
     async def _update_virtual_trades(self):
-        """Update virtual trades - check if target/SL hit."""
+        """Update virtual trades - check if target/SL hit using a batch request to avoid rate limits."""
         try:
             virtual_trader = get_virtual_trader()
+            
+            # OPTIMIZATION: Check if there are any open positions first
+            from performance_manager import get_performance_manager
+            db_mgr = get_performance_manager()
+            open_positions = db_mgr.get_all_open_positions()
+            if not open_positions:
+                return  # Save API requests when idle!
+                
             enabled_indices = self.index_manager.get_enabled_indices()
+            
+            symbols_to_fetch = [idx.symbol for idx in enabled_indices if idx.name in self._expiry_dates]
+            if not symbols_to_fetch:
+                return
+                
+            quotes = await self.data_fetcher.get_quotes_batch(symbols_to_fetch)
             
             for index_config in enabled_indices:
                 if index_config.name not in self._expiry_dates:
                     continue
                 
-                # Get current spot price
-                spot_price = await self.data_fetcher.get_spot_price(index_config.symbol)
+                key_colon = index_config.symbol.replace("|", ":")
+                quote_val = quotes.get(index_config.symbol) or quotes.get(key_colon)
+                spot_price = quote_val.get("last_price", 0.0) if quote_val else 0.0
+                
                 if spot_price > 0:
                     closed_trades = virtual_trader.check_and_update_trades(index_config.name, spot_price)
                     
                     # NOTE: Trade exit alerts are now sent by virtual_trader to VT channel
                     # No longer send to main signal channel
                     for trade in closed_trades:
-                        logger.info(f"� Trade closed: {trade.index} {trade.signal_type} P&L: ₹{trade.pnl:+,.0f}")
+                        logger.info(f" Trade closed: {trade.index} {trade.signal_type} P&L: ₹{trade.pnl:+,.0f}")
         except Exception as e:
             logger.error(f"Error updating virtual trades: {e}")
     
@@ -632,7 +685,7 @@ class AITradingSystem:
         
         # Check if we already have an open position for this index+direction
         virtual_trader = get_virtual_trader()
-        if virtual_trader.is_position_open(index_name, signal_type_str):
+        if virtual_trader.is_position_open("admin@trading.ai", index_name, signal_type_str):
             logger.info(f"⏸️ Already have open {signal_type_str} position on {index_name}, skipping")
             return
         
@@ -681,6 +734,27 @@ class AITradingSystem:
             market_context={"pcr": pcr_data.get('pcr_oi', 1.0), "vwap": vwap}
         )
         logger.info(f"📈 Rule-based virtual trade opened: {signal_type_str} {index_name} {signal.strike}")
+
+        # REAL TRADING EXECUTION (Rule-based fallback)
+        if SYSTEM_CONFIG.real_trading_enabled:
+            instrument_key = ""
+            if strikes_data:
+                for s in strikes_data:
+                    if s.strike_price == signal.strike:
+                        instrument_key = s.call_key if signal_type_str == 'CALL' else s.put_key
+                        break
+            
+            if instrument_key:
+                from virtual_trader import LOT_SIZES
+                base_lot_size = LOT_SIZES.get(index_name.upper().replace(" ", "").replace("50", "").replace("BANK", "BANKNIFTY"), 50)
+                quantity = base_lot_size * SYSTEM_CONFIG.max_lots
+                
+                await self.real_trader.place_order(
+                    index=index_name,
+                    symbol=instrument_key,
+                    transaction_type="BUY",
+                    quantity=quantity
+                )
                     
     async def _run_eod_analysis(self):
         """Analyze day's performance and generate learnings for tomorrow."""

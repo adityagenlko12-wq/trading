@@ -1,145 +1,94 @@
 """
-Virtual Trading Module for the F&O Trading System.
-Tracks hypothetical trades based on AI signals and calculates P&L.
+Virtual Trading Module for the F&O and Equity Trading System.
+Tracks user trades, portfolios, and active positions in SQLite.
 """
 
 import json
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, Optional, List
+from datetime import datetime
+from typing import Dict, Optional, List, Tuple
 import pytz
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Virtual trades file
-VIRTUAL_TRADES_FILE = "virtual_trades.json"
-
 # Lot sizes for different indices
 LOT_SIZES = {
-    "NIFTY": 65,
+    "NIFTY": 75,
     "BANKNIFTY": 30,
-    "FINNIFTY": 60,
-    "MIDCPNIFTY": 120,
-    "NIFTYNXT50": 25,
+    "FINNIFTY": 40,
+    "MIDCPNIFTY": 75,
     "SENSEX": 10,
 }
 
-# Default option premium per point (approximate)
-PREMIUM_PER_POINT = 1.0  # Will be adjusted based on moneyness
-
-
-class VirtualTrade:
-    """Represents a virtual/paper trade."""
-    
-    def __init__(self, data: Dict):
-        self.id = data.get('id', 0)
-        self.index = data.get('index', 'NIFTY')
-        self.signal_type = data.get('signal_type', 'CALL')
-        self.strike = data.get('strike', 0)
-        self.spot_at_entry = data.get('spot_at_entry', 0)
-        self.entry_premium = data.get('entry_premium', 100)  # Estimated option premium
-        self.lot_size = data.get('lot_size', LOT_SIZES.get(self.index, 75))
-        self.target_points = data.get('target_points', 30)
-        self.stop_loss_points = data.get('stop_loss_points', 15)
-        self.entry_time = data.get('entry_time', '')
-        self.status = data.get('status', 'OPEN')  # OPEN, TARGET_HIT, SL_HIT, CLOSED
-        self.exit_premium = data.get('exit_premium', None)
-        self.exit_time = data.get('exit_time', None)
-        self.points_captured = data.get('points_captured', 0)
-        self.pnl = data.get('pnl', 0)
-        self.highest_premium = data.get('highest_premium', self.entry_premium)
-        self.lowest_premium = data.get('lowest_premium', self.entry_premium)
-        self.current_premium = data.get('current_premium', self.entry_premium)
-        self.current_pnl = data.get('current_pnl', 0)
-        self.reasoning = data.get('reasoning', '')
-        self.market_context = data.get('market_context', {})
-    
-    def to_dict(self) -> Dict:
-        return {
-            'id': self.id,
-            'index': self.index,
-            'signal_type': self.signal_type,
-            'strike': self.strike,
-            'spot_at_entry': self.spot_at_entry,
-            'entry_premium': self.entry_premium,
-            'current_premium': self.current_premium,
-            'lot_size': self.lot_size,
-            'lot_count': getattr(self, 'lot_count', 10),
-            'base_lot_size': getattr(self, 'base_lot_size', self.lot_size / 10 if self.lot_size else 65),
-            'target_points': self.target_points,
-            'stop_loss_points': self.stop_loss_points,
-            'entry_time': self.entry_time,
-            'status': self.status,
-            'exit_premium': self.exit_premium,
-            'exit_time': self.exit_time,
-            'points_captured': self.points_captured,
-            'pnl': self.pnl,
-            'current_pnl': self.current_pnl,
-            'current_points': self.current_premium - self.entry_premium,
-            'required_capital': self.entry_premium * self.lot_size,
-            'roi_percentage': ((self.current_pnl / (self.entry_premium * self.lot_size)) * 100) if self.entry_premium > 0 else 0,
-            'highest_premium': self.highest_premium,
-            'lowest_premium': self.lowest_premium,
-            'reasoning': self.reasoning,
-            'market_context': self.market_context,
-        }
-    
-    def calculate_pnl(self, current_premium: float) -> float:
-        """Calculate P&L based on current premium."""
-        points = current_premium - self.entry_premium
-        return points * self.lot_size
-    
-    def update_mtm(self, current_premium: float):
-        """Update mark-to-market values."""
-        self.current_premium = current_premium
-        self.current_pnl = (current_premium - self.entry_premium) * self.lot_size
-        
-        if current_premium > self.highest_premium:
-            self.highest_premium = current_premium
-        if current_premium < self.lowest_premium:
-            self.lowest_premium = current_premium
-
-
 class VirtualTrader:
-    """Manages virtual/paper trades for performance showcase."""
+    """Manages multi-user paper trading, wallet balance updates, holdings, and F&O positions."""
     
     def __init__(self):
-        self.trades: List[VirtualTrade] = []
-        self.total_pnl = 0
-        self.winning_trades = 0
-        self.losing_trades = 0
+        self.ist = pytz.timezone('Asia/Kolkata')
         self.last_hourly_update = None
-        self.load()
-    
-    def load(self):
-        """Load trades from file."""
-        try:
-            if Path(VIRTUAL_TRADES_FILE).exists():
-                with open(VIRTUAL_TRADES_FILE, 'r') as f:
-                    data = json.load(f)
-                    self.trades = [VirtualTrade(t) for t in data.get('trades', [])]
-                    self.total_pnl = data.get('total_pnl', 0)
-                    self.winning_trades = data.get('winning_trades', 0)
-                    self.losing_trades = data.get('losing_trades', 0)
-                logger.info(f"Loaded {len(self.trades)} virtual trades")
-        except Exception as e:
-            logger.error(f"Error loading virtual trades: {e}")
-    
-    def save(self):
-        """Save trades to file."""
-        try:
-            data = {
-                'trades': [t.to_dict() for t in self.trades],
-                'total_pnl': self.total_pnl,
-                'winning_trades': self.winning_trades,
-                'losing_trades': self.losing_trades,
-            }
-            with open(VIRTUAL_TRADES_FILE, 'w') as f:
-                json.dump(data, f, indent=2)
-        except Exception as e:
-            logger.error(f"Error saving virtual trades: {e}")
-    
+        
+    def get_stats(self, user_email: str = "admin@trading.ai") -> Dict:
+        """Get paper trading portfolio stats for a user."""
+        from performance_manager import get_performance_manager
+        db_mgr = get_performance_manager()
+        from user_auth import get_wallet_manager
+        wallet_mgr = get_wallet_manager()
+        
+        # 1. Available balance
+        balance = wallet_mgr.get_balance(user_email)
+        
+        # 2. Holdings (invested amount)
+        holdings = db_mgr.get_holdings(user_email)
+        invested_amount = 0.0
+        
+        for h in holdings:
+            invested_amount += h["quantity"] * h["average_price"]
+            
+        # 3. Active positions P&L
+        open_positions = db_mgr.get_active_positions(user_email)
+        open_pnl = sum(pos.get("current_pnl", 0.0) for pos in open_positions)
+        
+        # 4. Closed trades stats
+        closed_trades = db_mgr.get_user_trades(user_email, limit=100)
+        winning_trades = sum(1 for t in closed_trades if t.get("pnl", 0.0) > 0)
+        losing_trades = sum(1 for t in closed_trades if t.get("pnl", 0.0) <= 0)
+        total_pnl = sum(t.get("pnl", 0.0) for t in closed_trades)
+        
+        # Find today's P&L (closed today + current open P&L)
+        today_str = datetime.now(self.ist).strftime('%Y-%m-%d')
+        todays_closed_pnl = sum(t.get("pnl", 0.0) for t in closed_trades if t.get("exit_time", "").startswith(today_str))
+        todays_pnl = todays_closed_pnl + open_pnl
+        
+        total_trades = winning_trades + losing_trades
+        win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0.0
+        
+        return {
+            'available_balance': round(balance, 2),
+            'invested_amount': round(invested_amount, 2),
+            'open_trades': len(open_positions),
+            'total_trades': len(closed_trades),
+            'winning_trades': winning_trades,
+            'losing_trades': losing_trades,
+            'win_rate': round(win_rate, 1),
+            'total_pnl': round(total_pnl, 2),
+            'todays_pnl': round(todays_pnl, 2),
+        }
+
+    def get_open_positions_dict(self, user_email: str) -> List[Dict]:
+        from performance_manager import get_performance_manager
+        db_mgr = get_performance_manager()
+        return db_mgr.get_active_positions(user_email)
+
+    def is_position_open(self, user_email: str, index: str, signal_type: str) -> bool:
+        """Check if an open position already exists for this index and direction."""
+        from performance_manager import get_performance_manager
+        positions = get_performance_manager().get_active_positions(user_email)
+        for pos in positions:
+            if pos["symbol"] == index and pos["signal_type"] == signal_type:
+                return True
+        return False
+
     def open_trade(
         self,
         index: str,
@@ -151,297 +100,281 @@ class VirtualTrader:
         stop_loss_points: int,
         reasoning: str = '',
         market_context: Dict = None,
-    ) -> VirtualTrade:
-        """Open a new virtual trade."""
+        user_email: str = "admin@trading.ai"
+    ) -> bool:
+        """Compat/AI endpoint: Open trade for AI signals (defaults to admin)."""
+        base_lot_size = LOT_SIZES.get(index.upper().replace(" ", "").replace("50", "").replace("BANK", "BANKNIFTY"), 75)
+        lot_count = 10
+        quantity = lot_count
+        
+        success, msg = self.place_user_order(
+            user_email=user_email,
+            symbol=index,
+            type_str="OPTION",
+            signal_type=signal_type,
+            strike=strike,
+            price=entry_premium,
+            quantity=quantity,
+            lot_size=base_lot_size,
+            target_points=target_points,
+            stop_loss_points=stop_loss_points,
+            spot_at_entry=spot_price,
+            reasoning=reasoning,
+            market_context=market_context
+        )
+        return success
+
+    def place_user_order(
+        self,
+        user_email: str,
+        symbol: str,
+        type_str: str, # STOCK, OPTION
+        signal_type: str, # BUY, SELL, CALL, PUT
+        strike: int, # Option strike or 0 for stock
+        price: float, # LTP at order
+        quantity: int,
+        lot_size: int = 1,
+        target_points: float = 0,
+        stop_loss_points: float = 0,
+        spot_at_entry: float = 0,
+        reasoning: str = '',
+        market_context: Dict = None
+    ) -> Tuple[bool, str]:
+        """Place virtual paper trade for a user and adjust wallet balance."""
+        from user_auth import get_wallet_manager
+        wallet_mgr = get_wallet_manager()
+        from performance_manager import get_performance_manager
+        db_mgr = get_performance_manager()
+        
+        if type_str == "OPTION":
+            required_capital = price * quantity * lot_size
+        else:
+            required_capital = price * quantity
+            
+        current_balance = wallet_mgr.get_balance(user_email)
+        
+        if signal_type in ["BUY", "CALL", "PUT"]:
+            if current_balance < required_capital:
+                return False, f"Insufficient balance! Required: ₹{required_capital:,.2f}, Available: ₹{current_balance:,.2f}"
+                
+            wallet_mgr.deduct_balance(user_email, required_capital, f"Buy Order: {symbol} @ ₹{price}")
+            
+            if type_str == "STOCK":
+                company_name = symbol
+                try:
+                    import os
+                    json_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "top_500_stocks.json")
+                    if os.path.exists(json_path):
+                        with open(json_path, "r") as f:
+                            stocks_data = json.load(f)
+                            for s in stocks_data:
+                                if s["symbol"] == symbol:
+                                    company_name = s["name"]
+                                    break
+                except Exception:
+                    pass
+                
+                db_mgr.update_holding(user_email, symbol, company_name, quantity, price)
+                
+            else: # OPTION
+                target_val = price + target_points if target_points > 0 else 0
+                sl_val = price - stop_loss_points if stop_loss_points > 0 else 0
+                
+                db_mgr.add_active_position(
+                    user_email=user_email,
+                    symbol=symbol,
+                    type_str="OPTION",
+                    signal_type=signal_type,
+                    strike=strike,
+                    entry_price=price,
+                    spot_at_entry=spot_at_entry or price,
+                    quantity=quantity,
+                    lot_size=lot_size,
+                    target_price=target_val,
+                    stop_loss_price=sl_val,
+                )
+            
+            return True, "Order executed successfully"
+            
+        elif signal_type == "SELL" and type_str == "STOCK":
+            holdings = db_mgr.get_holdings(user_email)
+            h_item = next((h for h in holdings if h["symbol"] == symbol), None)
+            if not h_item or h_item["quantity"] < quantity:
+                return False, f"Not enough shares in holdings to sell! Owned: {h_item['quantity'] if h_item else 0}"
+                
+            avg_buy_price = h_item["average_price"]
+            pnl = (price - avg_buy_price) * quantity
+            roi = (pnl / (avg_buy_price * quantity) * 100) if avg_buy_price > 0 else 0
+            
+            db_mgr.update_holding(user_email, symbol, h_item["company_name"], -quantity, price)
+            wallet_mgr.add_balance(user_email, required_capital, f"Sell Order: {symbol} @ ₹{price}")
+            
+            ist = pytz.timezone('Asia/Kolkata')
+            now = datetime.now(ist)
+            
+            trade_dict = {
+                'user_email': user_email,
+                'id': int(now.timestamp()),
+                'symbol': symbol,
+                'type': 'STOCK',
+                'signal_type': 'SELL',
+                'strike': 0,
+                'entry_premium': avg_buy_price,
+                'exit_premium': price,
+                'lot_size': quantity,
+                'pnl': pnl,
+                'roi_percentage': roi,
+                'entry_time': h_item.get('created_at', now.isoformat()),
+                'exit_time': now.isoformat(),
+                'status': 'CLOSED',
+                'reasoning': 'Manual equity sell',
+                'market_context': {}
+            }
+            db_mgr.log_trade(trade_dict)
+            
+            return True, "Order executed successfully"
+            
+        return False, "Invalid order parameters"
+
+    def close_trade(self, trade_id: int, exit_premium: float, status: str = 'CLOSED', user_email: str = None) -> bool:
+        """Compat/Manual exit endpoint: Close open option position."""
+        from performance_manager import get_performance_manager
+        db_mgr = get_performance_manager()
+        from user_auth import get_wallet_manager
+        wallet_mgr = get_wallet_manager()
+        
+        conn = db_mgr.db_path
+        import sqlite3
+        conn_db = sqlite3.connect(conn)
+        conn_db.row_factory = sqlite3.Row
+        cursor = conn_db.cursor()
+        
+        if user_email:
+            cursor.execute("SELECT * FROM active_positions WHERE id = ? AND user_email = ? AND status = 'OPEN'", (trade_id, user_email))
+        else:
+            cursor.execute("SELECT * FROM active_positions WHERE id = ? AND status = 'OPEN'", (trade_id,))
+            
+        pos = cursor.fetchone()
+        conn_db.close()
+        
+        if not pos:
+            return False
+            
+        pos = dict(pos)
+        pos_id = pos["id"]
+        email = pos["user_email"]
+        symbol = pos["symbol"]
+        signal_type = pos["signal_type"]
+        strike = pos["strike"]
+        entry_price = pos["entry_price"]
+        quantity = pos["quantity"]
+        lot_size = pos["lot_size"]
+        entry_time = pos["entry_time"]
+        
+        points_captured = exit_premium - entry_price
+        pnl = points_captured * quantity * lot_size
+        roi = (pnl / (entry_price * quantity * lot_size) * 100) if entry_price > 0 else 0
+        
+        db_mgr.close_active_position(pos_id, status)
+        
+        capital_used = entry_price * quantity * lot_size
+        proceeds = capital_used + pnl
+        wallet_mgr.add_balance(email, proceeds, f"Exit Position: {symbol} {signal_type} {strike} @ ₹{exit_premium}")
+        
         ist = pytz.timezone('Asia/Kolkata')
         now = datetime.now(ist)
         
-        # Get lot size for index
-        index_key = index.upper().replace(" ", "").replace("50", "").replace("BANK", "BANKNIFTY")
-        if "BANK" in index.upper():
-            index_key = "BANKNIFTY"
-        elif "NIFTY" in index.upper():
-            index_key = "NIFTY"
-        elif "SENSEX" in index.upper():
-            index_key = "SENSEX"
-        
-        # Default to 10 lots per trade as requested
-        base_lot_size = LOT_SIZES.get(index_key, 65)
-        lot_count = 10
-        lot_size = base_lot_size * lot_count
-        
-        trade = VirtualTrade({
-            'id': len(self.trades) + 1,
-            'index': index,
+        trade_dict = {
+            'user_email': email,
+            'id': pos_id,
+            'symbol': symbol,
+            'type': 'OPTION',
             'signal_type': signal_type,
             'strike': strike,
-            'spot_at_entry': spot_price,
-            'entry_premium': entry_premium,
-            'lot_size': lot_size,
-            'lot_count': lot_count,
-            'base_lot_size': base_lot_size,
-            'target_points': target_points,
-            'stop_loss_points': stop_loss_points,
-            'entry_time': now.strftime('%Y-%m-%d %H:%M:%S'),
-            'status': 'OPEN',
-            'reasoning': reasoning,
-            'market_context': market_context or {},
-        })
+            'entry_premium': entry_price,
+            'exit_premium': exit_premium,
+            'lot_size': quantity * lot_size,
+            'pnl': pnl,
+            'roi_percentage': roi,
+            'entry_time': entry_time,
+            'exit_time': now.isoformat(),
+            'status': status,
+            'reasoning': f"Option position exit: {status}",
+            'market_context': {"points_captured": points_captured}
+        }
+        db_mgr.log_trade(trade_dict)
         
-        self.trades.append(trade)
-        self.save()
+        logger.info(f"📊 Option trade closed: {email} | {symbol} {signal_type} | P&L: ₹{pnl:,.2f}")
+        return True
+
+    def check_and_update_trades(self, index: str, spot_price: float) -> List[Dict]:
+        """Check dynamic prices and close active option positions if targets/SLs are hit (trailing stop-loss)."""
+        from performance_manager import get_performance_manager
+        db_mgr = get_performance_manager()
         
-        logger.info(f"📈 Virtual Trade #{trade.id} opened: {signal_type} {index} {strike} @ ₹{entry_premium}")
-        
-        # Send notification to Virtual Trading channel
-        try:
-            import asyncio
-            from notifier import get_vt_notifier
-            vt_notifier = get_vt_notifier()
-            
-            # Try to send async, fall back to sync
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    asyncio.ensure_future(vt_notifier.send_trade_opened(trade))
-                else:
-                    loop.run_until_complete(vt_notifier.send_trade_opened(trade))
-            except RuntimeError:
-                asyncio.run(vt_notifier.send_trade_opened(trade))
-        except Exception as e:
-            logger.error(f"Failed to send VT trade opened notification: {e}")
-        
-        return trade
-    
-    def close_trade(self, trade_id: int, exit_premium: float, status: str = 'CLOSED'):
-        """Close a virtual trade."""
-        ist = pytz.timezone('Asia/Kolkata')
-        now = datetime.now(ist)
-        
-        for trade in self.trades:
-            if trade.id == trade_id and trade.status == 'OPEN':
-                trade.exit_premium = exit_premium
-                trade.exit_time = now.strftime('%Y-%m-%d %H:%M:%S')
-                trade.status = status
-                trade.points_captured = exit_premium - trade.entry_premium
-                trade.pnl = trade.points_captured * trade.lot_size
-                
-                self.total_pnl += trade.pnl
-                if trade.pnl > 0:
-                    self.winning_trades += 1
-                else:
-                    self.losing_trades += 1
-                
-                self.save()
-                
-                # Log to permanent database
-                try:
-                    from performance_manager import get_performance_manager
-                    get_performance_manager().log_trade(trade.to_dict())
-                except Exception as db_err:
-                    logger.error(f"Failed to log trade to permanent DB: {db_err}")
-                
-                # Send notification to Virtual Trading channel
-                try:
-                    import asyncio
-                    from notifier import get_vt_notifier
-                    vt_notifier = get_vt_notifier()
-                    
-                    try:
-                        loop = asyncio.get_event_loop()
-                        if loop.is_running():
-                            asyncio.ensure_future(vt_notifier.send_trade_closed(trade))
-                        else:
-                            loop.run_until_complete(vt_notifier.send_trade_closed(trade))
-                    except RuntimeError:
-                        asyncio.run(vt_notifier.send_trade_closed(trade))
-                except Exception as e:
-                    logger.error(f"Failed to send VT trade closed notification: {e}")
-                    
-                logger.info(f"📊 Virtual Trade #{trade_id} closed: {status} | P&L: ₹{trade.pnl:,.0f}")
-                return trade
-        return None
-    
-    def check_and_update_trades(self, index: str, spot_price: float, option_prices: Dict[int, Dict] = None) -> List[VirtualTrade]:
-        """Check open trades and update their status based on current prices.
-        
-        Implements TRAILING STOP-LOSS:
-        - When profit >= 10 points: Move SL to breakeven
-        - When profit >= 15 points: Trail SL to +8 points
-        - When profit >= 20 points: Trail SL to +12 points (lock most profit)
-        """
+        open_positions = db_mgr.get_all_open_positions()
         closed_trades = []
-        for trade in self.trades:
-            if trade.status != 'OPEN':
+        
+        for pos in open_positions:
+            if pos["symbol"] != index or pos["type"] != "OPTION":
                 continue
-            if trade.index != index:
-                continue
+                
+            pos_id = pos["id"]
+            user_email = pos["user_email"]
+            entry_price = pos["entry_price"]
+            strike = pos["strike"]
+            signal_type = pos["signal_type"]
+            quantity = pos["quantity"]
+            lot_size = pos["lot_size"]
             
-            # Estimate current premium based on spot movement
-            spot_change = spot_price - trade.spot_at_entry
+            spot_at_entry = pos.get("spot_at_entry") or entry_price
             
-            # For CALL: premium increases when spot goes up
-            # For PUT: premium increases when spot goes down
-            if trade.signal_type == 'CALL':
-                premium_change = spot_change * 0.5  # Delta ~0.5 for ATM
+            spot_change = spot_price - spot_at_entry
+            
+            if signal_type == 'CALL':
+                premium_change = spot_change * 0.5
             else:
                 premium_change = -spot_change * 0.5
+                
+            current_premium = max(1.0, entry_price + premium_change)
+            current_pnl = (current_premium - entry_price) * quantity * lot_size
             
-            current_premium = max(1, trade.entry_premium + premium_change)
-            trade.update_mtm(current_premium)
+            target_price = pos.get("target_price", 0.0)
+            stop_loss_price = pos.get("stop_loss_price", 0.0)
             
-            # Calculate current profit in points
-            current_profit = current_premium - trade.entry_premium
+            # Trailing Stop-Loss calculation (long option premium)
+            profit_points = current_premium - entry_price
+            new_sl_price = None
             
-            # ==== TRAILING STOP-LOSS LOGIC ====
-            # Calculate dynamic stop-loss based on highest profit achieved
-            trailing_sl_level = trade.entry_premium - trade.stop_loss_points  # Original SL
+            if profit_points >= 20.0:
+                trail_sl = entry_price + 12.0
+                if trail_sl > stop_loss_price:
+                    new_sl_price = trail_sl
+            elif profit_points >= 15.0:
+                trail_sl = entry_price + 8.0
+                if trail_sl > stop_loss_price:
+                    new_sl_price = trail_sl
+            elif profit_points >= 10.0:
+                trail_sl = entry_price  # Breakeven
+                if trail_sl > stop_loss_price:
+                    new_sl_price = trail_sl
             
-            # Get highest premium seen (tracks max profit)
-            max_profit = trade.highest_premium - trade.entry_premium
+            if new_sl_price is not None:
+                stop_loss_price = new_sl_price
+                db_mgr.update_position_price(pos_id, current_premium, current_pnl, stop_loss_price=stop_loss_price)
+                logger.info(f"📈 Trailing SL updated for position {pos_id} to ₹{stop_loss_price:.2f} (Profit: {profit_points:.2f} pts)")
+            else:
+                db_mgr.update_position_price(pos_id, current_premium, current_pnl)
             
-            # Apply trailing stop-loss rules
-            if max_profit >= 20:
-                # Lock in +12 points (60% of max profit)
-                trailing_sl_level = trade.entry_premium + 12
-                logger.info(f"📈 Trade #{trade.id}: Max profit {max_profit:.0f}pts, trailing SL at +12")
-            elif max_profit >= 15:
-                # Lock in +8 points
-                trailing_sl_level = trade.entry_premium + 8
-            elif max_profit >= 10:
-                # Move to breakeven
-                trailing_sl_level = trade.entry_premium
-            
-            # Check target hit
-            if current_premium >= trade.entry_premium + trade.target_points:
-                closed = self.close_trade(trade.id, trade.entry_premium + trade.target_points, 'TARGET_HIT')
-                if closed: closed_trades.append(closed)
-            # Check TRAILING stop loss hit (smarter SL)
-            elif current_premium <= trailing_sl_level:
-                exit_status = 'SL_HIT' if trailing_sl_level < trade.entry_premium else 'TRAILING_SL'
-                closed = self.close_trade(trade.id, current_premium, exit_status)
-                if closed: 
-                    closed_trades.append(closed)
-                    logger.info(f"📊 Trade #{trade.id} closed by trailing SL at ₹{current_premium:.2f}")
-        
-        self.save()
+            if target_price > 0 and current_premium >= target_price:
+                self.close_trade(pos_id, target_price, 'TARGET_HIT')
+                closed_trades.append(pos)
+            elif stop_loss_price > 0 and current_premium <= stop_loss_price:
+                self.close_trade(pos_id, current_premium, 'SL_HIT')
+                closed_trades.append(pos)
+                
         return closed_trades
-    
-    def get_open_trades(self) -> List[VirtualTrade]:
-        """Get all open trades."""
-        return [t for t in self.trades if t.status == 'OPEN']
-    
-    def is_position_open(self, index: str, signal_type: str, strike: int = None) -> bool:
-        """Check if a position is already open for this index and signal type.
-        
-        IMPORTANT: We only allow ONE trade per index per direction at a time.
-        This prevents opening CALL NIFTY 25300, 25350, 25400, etc. simultaneously.
-        """
-        for t in self.get_open_trades():
-            # Check if ANY trade is open for this index + signal (ignore strike)
-            if t.index == index and t.signal_type == signal_type:
-                return True
-        return False
-    
-    def get_todays_trades(self) -> List[VirtualTrade]:
-        """Get today's trades."""
-        ist = pytz.timezone('Asia/Kolkata')
-        today = datetime.now(ist).strftime('%Y-%m-%d')
-        return [t for t in self.trades if t.entry_time.startswith(today)]
-    
-    def get_stats(self) -> Dict:
-        """Get trading statistics."""
-        todays_trades = self.get_todays_trades()
-        todays_pnl = sum(t.pnl for t in todays_trades if t.status != 'OPEN')
-        
-        total_trades = self.winning_trades + self.losing_trades
-        win_rate = (self.winning_trades / total_trades * 100) if total_trades > 0 else 0
-        
-        return {
-            'total_trades': len(self.trades),
-            'open_trades': len(self.get_open_trades()),
-            'winning_trades': self.winning_trades,
-            'losing_trades': self.losing_trades,
-            'win_rate': round(win_rate, 1),
-            'total_pnl': round(self.total_pnl, 0),
-            'todays_trades': len(todays_trades),
-            'todays_pnl': round(todays_pnl, 0),
-        }
-    
-    def get_showcase_message(self) -> str:
-        """Generate a showcase message for Telegram."""
-        stats = self.get_stats()
-        ist = pytz.timezone('Asia/Kolkata')
-        now = datetime.now(ist)
-        
-        # Get recent closed trades
-        recent_trades = [t for t in self.trades if t.status != 'OPEN'][-5:]
-        
-        trades_list = ""
-        for t in recent_trades[::-1]:
-            emoji = "✅" if t.pnl > 0 else "❌"
-            trades_list += f"{emoji} {t.signal_type} {t.index} {t.strike}: ₹{t.pnl:+,.0f}\n"
-        
-        pnl_emoji = "🟢" if stats['total_pnl'] >= 0 else "🔴"
-        today_emoji = "📈" if stats['todays_pnl'] >= 0 else "📉"
-        
-        message = f"""
-💰 <b>AI TRADING PERFORMANCE SHOWCASE</b> 💰
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-{pnl_emoji} <b>Total P&L: ₹{stats['total_pnl']:+,.0f}</b>
-{today_emoji} <b>Today's P&L: ₹{stats['todays_pnl']:+,.0f}</b>
-
-📊 <b>STATISTICS:</b>
-• Total Trades: {stats['total_trades']}
-• Win Rate: {stats['win_rate']}%
-• Winning: {stats['winning_trades']} | Losing: {stats['losing_trades']}
-• Open Positions: {stats['open_trades']}
-
-📋 <b>RECENT TRADES:</b>
-{trades_list if trades_list else "No closed trades yet"}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⏰ {now.strftime('%H:%M:%S')} | {now.strftime('%d-%b-%Y')}
-
-<i>*Virtual trading based on AI signals. 
-Not actual trades. 1 lot per signal.</i>
-"""
-        return message
-
-    def get_exit_message(self, trade: VirtualTrade) -> str:
-        """Generate a detailed message for a trade exit."""
-        emoji = "✅" if trade.pnl > 0 else "❌"
-        status_text = "TARGET ACHIEVED 🎯" if trade.status == 'TARGET_HIT' else "STOP LOSS HIT 🛑"
-        if trade.status == 'MANUAL_EXIT':
-            status_text = "MANUAL EXIT 🚪"
-        pnl_color = "🟢" if trade.pnl > 0 else "🔴"
-        required_cap = trade.entry_premium * trade.lot_size
-        roi = (trade.pnl / required_cap * 100) if required_cap > 0 else 0
-        
-        return f"""
-{emoji} <b>VIRTUAL TRADE EXIT: {status_text}</b> {emoji}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📊 <b>Trade Details:</b>
-• Index: {trade.index}
-• Signal: {trade.signal_type}
-• Strike: {trade.strike}
-• Lot Size: {trade.lot_size}
-• Capital Used: ₹{required_cap:,.2f}
-
-💰 <b>Performance:</b>
-• Entry Price: ₹{trade.entry_premium}
-• Exit Price: ₹{trade.exit_premium}
-• Points: {trade.points_captured:+.1f}
-• ROI: {roi:+.2f}%
-• {pnl_color} <b>Final P&L: ₹{trade.pnl:+,.0f}</b>
-
-⏰ Entry: {trade.entry_time}
-⏰ Exit: {trade.exit_time}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-<i>*Virtual trading analysis. No actual funds used.</i>
-"""
-    
     def should_send_hourly_update(self) -> bool:
         """Check if hourly update should be sent."""
         ist = pytz.timezone('Asia/Kolkata')
@@ -462,13 +395,51 @@ Not actual trades. 1 lot per signal.</i>
         
         return False
 
+    def get_showcase_message(self, user_email: str = "admin@trading.ai") -> str:
+        """Generate a showcase message for Telegram based on database stats."""
+        stats = self.get_stats(user_email)
+        ist = pytz.timezone('Asia/Kolkata')
+        now = datetime.now(ist)
+        
+        from performance_manager import get_performance_manager
+        db_mgr = get_performance_manager()
+        recent_trades = db_mgr.get_user_trades(user_email, limit=5)
+        
+        trades_list = ""
+        for t in recent_trades:
+            emoji = "✅" if t.get("pnl", 0.0) > 0 else "❌"
+            trades_list += f"{emoji} {t.get('signal_type')} {t.get('symbol')} {t.get('strike')}: ₹{t.get('pnl', 0.0):+,.0f}\n"
+        
+        pnl_emoji = "🟢" if stats['total_pnl'] >= 0 else "🔴"
+        today_emoji = "📈" if stats['todays_pnl'] >= 0 else "📉"
+        
+        message = f"""
+💰 <b>AI TRADING PERFORMANCE SHOWCASE ({user_email})</b> 💰
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Global instance
+{pnl_emoji} <b>Total P&L: ₹{stats['total_pnl']:+,.0f}</b>
+{today_emoji} <b>Today's P&L: ₹{stats['todays_pnl']:+,.0f}</b>
+
+📊 <b>STATISTICS:</b>
+• Total Trades: {stats['total_trades']}
+• Win Rate: {stats['win_rate']}%
+• Winning: {stats['winning_trades']} | Losing: {stats['losing_trades']}
+• Open Positions: {stats['open_trades']}
+
+📋 <b>RECENT TRADES:</b>
+{trades_list if trades_list else "No closed trades yet"}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⏰ {now.strftime('%H:%M:%S')} | {now.strftime('%d-%b-%Y')}
+
+<i>*Virtual trading based on AI signals. 
+Not actual trades.</i>
+"""
+        return message
+
+# Global Instance
 _virtual_trader = None
 
-
 def get_virtual_trader() -> VirtualTrader:
-    """Get or create the global virtual trader."""
     global _virtual_trader
     if _virtual_trader is None:
         _virtual_trader = VirtualTrader()

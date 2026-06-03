@@ -607,3 +607,132 @@ def api_admin_update_settings():
     payment_mgr.update_upi_settings(upi_id, upi_name)
     
     return jsonify({"success": True, "settings": payment_mgr.get_settings()})
+
+
+@auth_bp.route('/api/login', methods=['POST'])
+def api_mobile_login():
+    """API endpoint for mobile login (Laravel compat mode)"""
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.values
+        
+    username = data.get('username') or data.get('email', '')
+    password = data.get('password', '')
+    
+    user_mgr = get_user_manager()
+    result = user_mgr.login(email=username, password=password)
+    
+    if result['success']:
+        user = result['user']
+        token = result['token']
+        
+        # Build the exact JSON response expected by the mobile app's LoginResponseModel
+        response_data = {
+            "status": "success",
+            "remark": "login_success",
+            "message": {
+                "success": ["Login successful"]
+            },
+            "data": {
+                "user": {
+                    "id": 1, # Mock unique ID
+                    "username": user.get('name', 'User'),
+                    "email": user.get('email', ''),
+                    "mobile": user.get('phone', '1234567890'),
+                    "ev": "1", # email verified
+                    "sv": "1", # sms verified
+                    "tv": "1", # 2FA verified
+                    "profileComplete": "1"
+                },
+                "access_token": token,
+                "token_type": "Bearer"
+            }
+        }
+        
+        resp = make_response(jsonify(response_data))
+        resp.set_cookie('session_token', token, httponly=True, samesite='Lax', max_age=7*24*60*60)
+        return resp
+        
+    else:
+        # Build the error response expected by the mobile app
+        error_msg = result.get('error', 'Invalid credentials')
+        response_data = {
+            "status": "error",
+            "remark": "auth_error",
+            "message": {
+                "error": [error_msg]
+            }
+        }
+        return jsonify(response_data), 400
+
+
+@auth_bp.route('/api/register', methods=['POST'])
+def api_mobile_register():
+    """API endpoint for mobile registration (Laravel compat mode)"""
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.values
+        
+    firstname = data.get('firstname', '')
+    lastname = data.get('lastname', '')
+    email = data.get('email', '')
+    password = data.get('password', '')
+    phone = data.get('phone', '1234567890')
+    
+    name = f"{firstname} {lastname}".strip()
+    if not name:
+        name = email.split('@')[0]
+        
+    user_mgr = get_user_manager()
+    result = user_mgr.create_user(
+        email=email,
+        password=password,
+        name=name,
+        phone=phone
+    )
+    
+    if result['success']:
+        # Auto-login after successful registration
+        login_result = user_mgr.login(email=email, password=password)
+        if login_result['success']:
+            user = login_result['user']
+            token = login_result['token']
+            
+            response_data = {
+                "status": "success",
+                "remark": "registration_success",
+                "message": {
+                    "success": ["Registration successful"]
+                },
+                "data": {
+                    "user": {
+                        "id": 1,
+                        "username": user.get('name', name),
+                        "email": user.get('email', email),
+                        "mobile": user.get('phone', phone),
+                        "ev": "1",
+                        "sv": "1",
+                        "tv": "1",
+                        "profileComplete": "1"
+                    },
+                    "access_token": token,
+                    "token_type": "Bearer"
+                }
+            }
+            
+            resp = make_response(jsonify(response_data))
+            resp.set_cookie('session_token', token, httponly=True, samesite='Lax', max_age=7*24*60*60)
+            return resp
+            
+    # Error response
+    error_msg = result.get('error', 'Registration failed')
+    response_data = {
+        "status": "error",
+        "remark": "registration_error",
+        "message": {
+            "error": [error_msg]
+        }
+    }
+    return jsonify(response_data), 400

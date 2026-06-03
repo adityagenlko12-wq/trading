@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "678649964403",
+    "project_id": "vinance-project",
+    "storage_bucket": "vinance-project.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:678649964403:android:4ec80404ac9f76f2550706",
+        "android_client_info": {
+          "package_name": "dev.vlab.vinance"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "678649964403-tblup8b0a8a58gka57d93fvj2d00lufo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "dev.vlab.vinance",
+            "certificate_hash": "b136159e2d15ade4750b074c4cf45ea6f715b188"
+          }
+        },
+        {
+          "client_id": "678649964403-un4t9u4gg4lsbt3ni4upr8fcrtq5ctku.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhPKBFeLIZB3Z3wCuxgIt_aFxueelkjzY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "678649964403-un4t9u4gg4lsbt3ni4upr8fcrtq5ctku.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "678649964403-e4rjlktj8be35ebmol8k013vrpdn8qtq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "dev.vlab.vinance"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

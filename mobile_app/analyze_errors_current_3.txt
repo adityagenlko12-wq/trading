@@ -1,0 +1,367 @@
+Analyzing mobile_app...                                         
+
+   info • Missing type annotation • lib/core/helper/string_format_helper.dart:146:10 • strict_top_level_inference
+   info • Missing type annotation • lib/core/helper/string_format_helper.dart:151:10 • strict_top_level_inference
+   info • Don't invoke 'print' in production code • lib/core/helper/string_format_helper.dart:177:5 • avoid_print
+   info • Library names are not necessary • lib/core/packages/signin_with_linkdin/signin_with_linkedin.dart:1:9 • unnecessary_library_name
+   info • 'dart:html' is deprecated and shouldn't be used. Use package:web and dart:js_interop instead • lib/core/packages/signin_with_linkdin/src/helper/linkedin_web.dart:2:1 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/utils/my_color.dart:262:70 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/utils/my_color.dart:262:107 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/utils/my_color.dart:294:76 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/utils/my_color.dart:298:76 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/utils/my_color.dart:302:76 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/utils/my_color.dart:306:31 • deprecated_member_use
+   info • Missing type annotation • lib/core/utils/my_color.dart:386:10 • strict_top_level_inference
+   info • Missing type annotation • lib/core/utils/util.dart:11:10 • strict_top_level_inference
+   info • Missing type annotation • lib/core/utils/util.dart:15:10 • strict_top_level_inference
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/utils/util.dart:21:92 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/utils/util.dart:28:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/utils/util.dart:39:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/utils/util.dart:50:37 • deprecated_member_use
+   info • Missing type annotation • lib/core/utils/util.dart:58:10 • strict_top_level_inference
+   info • Missing type annotation • lib/core/utils/util.dart:70:10 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/account/change_password_controller.dart:27:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/account/change_password_controller.dart:34:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/account/change_password_controller.dart:42:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/account/profile_complete_controller.dart:58:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/account/profile_complete_controller.dart:63:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/account/profile_complete_controller.dart:157:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/account/profile_complete_controller.dart:162:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/account/profile_complete_controller.dart:232:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/account/profile_complete_controller.dart:240:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/account/profile_controller.dart:51:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/account/profile_controller.dart:109:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/activity_controller/activity_controller.dart:14:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/activity_controller/activity_controller.dart:19:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/auth/email_verification_controler.dart:26:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/auth/email_verification_controler.dart:34:3 • strict_top_level_inference
+   info • The prefix 'gSignIn' isn't a lower_case_with_underscores identifier • lib/data/controller/auth/auth/login_controller.dart:8:56 • library_prefixes
+   info • Missing type annotation • lib/data/controller/auth/auth/metamask/metamask_login_controller.dart:234:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/auth/metamask/metamask_reg_controller.dart:228:3 • strict_top_level_inference
+   info • The prefix 'gSignIn' isn't a lower_case_with_underscores identifier • lib/data/controller/auth/auth/registration_controller.dart:16:56 • library_prefixes
+   info • Missing type annotation • lib/data/controller/auth/auth/registration_controller.dart:59:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/auth/registration_controller.dart:64:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/auth/registration_controller.dart:96:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/auth/registration_controller.dart:143:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/auth/registration_controller.dart:233:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/auth/sms_verification_controler.dart:31:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/auth/sms_verification_controler.dart:65:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/auth/two_factor_controller.dart:21:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/auth/two_factor_controller.dart:48:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/auth/two_factor_controller.dart:53:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/auth/two_factor_controller.dart:80:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/auth/two_factor_controller.dart:109:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/biometric/biometric_controller.dart:25:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/auth/biometric/biometric_controller.dart:30:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/deposit/deposit_controller.dart:24:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/deposit/deposit_controller.dart:28:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/deposit/deposit_controller.dart:38:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/deposit/deposit_controller.dart:43:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/deposit/deposit_controller.dart:73:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/deposit/deposit_controller.dart:83:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/faq/faq_controller.dart:62:3 • strict_top_level_inference
+warning • The library 'package:vinance/data/model/market/market_over_view_model.dart' doesn't export a member with the hidden name 'Pairs' • lib/data/controller/home/home_controller.dart:15:102 • undefined_hidden_name
+warning • The library 'package:vinance/data/model/market/market_over_view_model.dart' doesn't export a member with the hidden name 'Market' • lib/data/controller/home/home_controller.dart:15:109 • undefined_hidden_name
+warning • The library 'package:vinance/data/model/market/market_over_view_model.dart' doesn't export a member with the hidden name 'Currency' • lib/data/controller/home/home_controller.dart:15:117 • undefined_hidden_name
+   info • Missing type annotation • lib/data/controller/home/home_controller.dart:63:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/home/home_controller.dart:72:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/home/home_controller.dart:113:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/home/home_controller.dart:176:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/home/home_controller.dart:228:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/kyc_controller/kyc_controller.dart:30:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/kyc_controller/kyc_controller.dart:84:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/kyc_controller/kyc_controller.dart:89:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/kyc_controller/kyc_controller.dart:95:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/kyc_controller/kyc_controller.dart:144:28 • strict_top_level_inference
+   info • Don't use 'BuildContext's across async gaps • lib/data/controller/kyc_controller/kyc_controller.dart:159:9 • use_build_context_synchronously
+   info • Missing type annotation • lib/data/controller/market/market_controller.dart:27:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/market/market_controller.dart:31:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/market/market_controller.dart:41:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/market/market_controller.dart:56:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/market/market_controller.dart:105:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/market/market_controller.dart:252:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/my_order/my_order_history_controller.dart:32:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/my_order/my_order_history_controller.dart:36:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/my_order/my_order_history_controller.dart:159:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/notification/notification_controller.dart:63:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/privacy/privacy_controller.dart:48:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/profile_and_settings/profile_and_settings_controller.dart:98:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/pusher_controller/pusher_service_controller.dart:97:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/pusher_controller/pusher_service_controller.dart:115:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/pusher_controller/pusher_service_controller.dart:150:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/splash/splash_controller.dart:25:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/support/new_ticket_controller.dart:47:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/support/new_ticket_controller.dart:54:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/support/support_controller.dart:32:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/support/ticket_details_controller.dart:31:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/support/ticket_details_controller.dart:105:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/support/ticket_details_controller.dart:175:3 • strict_top_level_inference
+warning • The declaration '_checkPermission' isn't referenced • lib/data/controller/support/ticket_details_controller.dart:256:16 • unused_element
+   info • Missing type annotation • lib/data/controller/trade_page/trade_history_controller.dart:29:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_history_controller.dart:33:3 • strict_top_level_inference
+warning • Unused import: '../../model/market/market_data_list_model.dart' • lib/data/controller/trade_page/trade_page_controller.dart:14:8 • unused_import
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:41:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:48:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:59:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:65:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:234:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:279:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:319:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:378:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:401:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:415:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:437:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:449:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:479:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:511:3 • strict_top_level_inference
+warning • The left operand can't be null, so the right operand is never executed • lib/data/controller/trade_page/trade_page_controller.dart:513:84 • dead_null_aware_expression
+warning • The left operand can't be null, so the right operand is never executed • lib/data/controller/trade_page/trade_page_controller.dart:513:109 • dead_null_aware_expression
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:532:3 • strict_top_level_inference
+warning • The left operand can't be null, so the right operand is never executed • lib/data/controller/trade_page/trade_page_controller.dart:535:82 • dead_null_aware_expression
+warning • The left operand can't be null, so the right operand is never executed • lib/data/controller/trade_page/trade_page_controller.dart:535:107 • dead_null_aware_expression
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:555:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:576:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:701:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:848:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:928:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:1037:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:1044:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:1070:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:1096:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:1122:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/trade_page/trade_page_controller.dart:1130:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/transfer/transfer_controller.dart:31:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/transfer/transfer_controller.dart:35:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/transfer/transfer_controller.dart:56:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/transfer/transfer_controller.dart:62:3 • strict_top_level_inference
+   info • The type of the right operand ('String') isn't a subtype or a supertype of the left operand ('int?') • lib/data/controller/transfer/transfer_controller.dart:95:97 • unrelated_type_equality_checks
+   info • Missing type annotation • lib/data/controller/transfer/transfer_controller.dart:134:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/transfer/transfer_controller.dart:143:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/wallet/single_coin_wallet_details_controller.dart:20:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/wallet/single_coin_wallet_details_controller.dart:26:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/wallet/single_coin_wallet_details_controller.dart:34:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/wallet/single_coin_wallet_details_controller.dart:47:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/wallet/wallet_controller.dart:25:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/wallet/wallet_controller.dart:34:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/wallet/wallet_controller.dart:49:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/wallet/wallet_controller.dart:53:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/wallet/wallet_controller.dart:101:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/wallet/wallet_history_controller.dart:38:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/wallet/wallet_history_controller.dart:42:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/wallet/wallet_history_controller.dart:206:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/withdraw/withdraw_confirm_controller.dart:67:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/withdraw/withdraw_confirm_controller.dart:128:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/withdraw/withdraw_confirm_controller.dart:134:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/withdraw/withdraw_confirm_controller.dart:140:28 • strict_top_level_inference
+   info • Don't use 'BuildContext's across async gaps • lib/data/controller/withdraw/withdraw_confirm_controller.dart:162:9 • use_build_context_synchronously
+   info • Missing type annotation • lib/data/controller/withdraw/withdraw_controller.dart:54:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/withdraw/withdraw_controller.dart:87:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/withdraw/withdraw_controller.dart:247:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/withdraw/withdraw_controller.dart:296:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/withdraw/withdraw_controller.dart:300:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/withdraw/withdraw_controller.dart:310:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/controller/withdraw/withdraw_controller.dart:315:3 • strict_top_level_inference
+warning • The value of the local variable 'mainUrl' isn't used • lib/data/controller/withdraw/withdraw_history_controller.dart:129:12 • unused_local_variable
+   info • Missing type annotation • lib/data/repo/account/change_password_repo.dart:42:2 • strict_top_level_inference
+warning • The left operand can't be null, so the right operand is never executed • lib/data/repo/account/profile_repo.dart:37:35 • dead_null_aware_expression
+warning • The left operand can't be null, so the right operand is never executed • lib/data/repo/account/profile_repo.dart:38:27 • dead_null_aware_expression
+warning • The left operand can't be null, so the right operand is never executed • lib/data/repo/account/profile_repo.dart:39:31 • dead_null_aware_expression
+warning • The left operand can't be null, so the right operand is never executed • lib/data/repo/account/profile_repo.dart:40:29 • dead_null_aware_expression
+warning • The left operand can't be null, so the right operand is never executed • lib/data/repo/account/profile_repo.dart:73:33 • dead_null_aware_expression
+warning • The left operand can't be null, so the right operand is never executed • lib/data/repo/account/profile_repo.dart:74:25 • dead_null_aware_expression
+warning • The left operand can't be null, so the right operand is never executed • lib/data/repo/account/profile_repo.dart:75:29 • dead_null_aware_expression
+warning • The left operand can't be null, so the right operand is never executed • lib/data/repo/account/profile_repo.dart:76:27 • dead_null_aware_expression
+warning • The value of the local variable 'success' isn't used • lib/data/repo/account/profile_repo.dart:130:10 • unused_local_variable
+warning • The value of the local variable 'success' isn't used • lib/data/repo/auth/login_repo.dart:102:10 • unused_local_variable
+warning • The operand can't be 'null', so the condition is always 'true' • lib/data/repo/support/support_repo.dart:41:20 • unnecessary_null_comparison
+warning • The '!' will have no effect because the receiver can't be null • lib/data/repo/support/support_repo.dart:41:41 • unnecessary_non_null_assertion
+warning • The '!' will have no effect because the receiver can't be null • lib/data/repo/support/support_repo.dart:42:34 • unnecessary_non_null_assertion
+   info • Missing type annotation • lib/data/services/api_service.dart:136:3 • strict_top_level_inference
+warning • The value of the local variable 'isBan' isn't used • lib/data/services/api_service.dart:149:10 • unused_local_variable
+   info • Missing type annotation • lib/data/services/api_service.dart:174:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/services/api_service.dart:288:3 • strict_top_level_inference
+   info • Missing type annotation • lib/data/services/api_service.dart:292:3 • strict_top_level_inference
+   info • Missing type annotation • lib/push_notification_service.dart:36:3 • strict_top_level_inference
+   info • Missing type annotation • lib/push_notification_service.dart:114:3 • strict_top_level_inference
+   info • Missing type annotation • lib/push_notification_service.dart:122:3 • strict_top_level_inference
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/bottom-sheet/bottom_sheet_bar.dart:14:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/card/bottom_sheet_card.dart:23:66 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/checkbox/custom_check_box.dart:43:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/checkbox/custom_check_box.dart:45:46 • deprecated_member_use
+warning • This class (or a class that this class inherits from) is marked as '@immutable', but one or more of its instance fields aren't final: CardColumn.subBody, CardColumn.headerTextStyle, CardColumn.bodyTextStyle, CardColumn.subBodyTextStyle, CardColumn.isOnlyHeader, CardColumn.isOnlyBody, CardColumn.space • lib/view/components/column_widget/card_column.dart:7:7 • must_be_immutable
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/column_widget/card_column.dart:61:102 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/column_widget/card_column.dart:85:308 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/view/components/custom_radio_button.dart:33:13 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/view/components/custom_radio_button.dart:40:13 • deprecated_member_use
+warning • The value of the field '_image' isn't used • lib/view/components/dialog/download_dialog.dart:33:9 • unused_field
+   info • Missing type annotation • lib/view/components/dialog/download_dialog.dart:94:3 • strict_top_level_inference
+   info • Missing type annotation • lib/view/components/dialog/download_dialog.dart:123:3 • strict_top_level_inference
+   info • Don't invoke 'print' in production code • lib/view/components/dialog/download_dialog.dart:133:9 • avoid_print
+   info • Missing type annotation • lib/view/components/dialog/exit_dialog.dart:13:1 • strict_top_level_inference
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/image/my_network_image_widget.dart:49:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/image/my_network_image_widget.dart:62:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/image/my_network_image_widget.dart:77:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/otp_field_widget/otp_field_widget.dart:44:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/row_widget/bottom_sheet_row.dart:38:97 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/row_widget/bottom_sheet_row.dart:46:116 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/row_widget/status_widget.dart:21:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/shimmer/match_card_shimmer.dart:13:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/shimmer/match_card_shimmer.dart:14:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/shimmer/match_card_shimmer.dart:17:60 • deprecated_member_use
+   info • Missing type annotation • lib/view/components/snack_bar/show_custom_snackbar.dart:11:10 • strict_top_level_inference
+   info • Missing type annotation • lib/view/components/snack_bar/show_custom_snackbar.dart:47:10 • strict_top_level_inference
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/text-form-field/custom_amount_text_field.dart:98:76 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/view/components/text-form-field/custom_drop_down_text_field.dart:38:13 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/text-form-field/custom_primary_text_field.dart:86:82 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/text-form-field/custom_text_field.dart:167:165 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/text/label_text_with_instructions.dart:47:81 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/text/label_text_with_instructions.dart:78:62 • deprecated_member_use
+   info • The file name 'webview_widget copy.dart' isn't a lower_case_with_underscores identifier • lib/view/components/webview/webview_widget copy.dart:1:1 • file_names
+   info • 'AndroidInAppWebViewController' is deprecated and shouldn't be used. Use InAppWebViewController instead • lib/view/components/webview/webview_widget.dart:53:7 • deprecated_member_use
+   info • 'setWebContentsDebuggingEnabled' is deprecated and shouldn't be used. Use InAppWebViewController.setWebContentsDebuggingEnabled instead • lib/view/components/webview/webview_widget.dart:53:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/components/webview/webview_widget.dart:60:50 • deprecated_member_use
+   info • 'initialOptions' is deprecated and shouldn't be used. Use initialSettings instead • lib/view/components/webview/webview_widget.dart:76:11 • deprecated_member_use
+   info • 'InAppWebViewGroupOptions' is deprecated and shouldn't be used. Use InAppWebViewSettings instead • lib/view/components/webview/webview_widget.dart:76:27 • deprecated_member_use
+   info • 'InAppWebViewOptions' is deprecated and shouldn't be used. Use InAppWebViewSettings instead • lib/view/components/webview/webview_widget.dart:77:28 • deprecated_member_use
+   info • 'AndroidInAppWebViewOptions' is deprecated and shouldn't be used. Use InAppWebViewSettings instead • lib/view/components/webview/webview_widget.dart:84:22 • deprecated_member_use
+   info • 'IOSInAppWebViewOptions' is deprecated and shouldn't be used. Use InAppWebViewSettings instead • lib/view/components/webview/webview_widget.dart:87:18 • deprecated_member_use
+   info • 'androidOnPermissionRequest' is deprecated and shouldn't be used. Use onPermissionRequest instead • lib/view/components/webview/webview_widget.dart:91:11 • deprecated_member_use
+   info • 'PermissionRequestResponse' is deprecated and shouldn't be used. Use PermissionResponse instead • lib/view/components/webview/webview_widget.dart:92:20 • deprecated_member_use
+   info • 'PermissionRequestResponseAction' is deprecated and shouldn't be used. Use PermissionResponseAction instead • lib/view/components/webview/webview_widget.dart:92:76 • deprecated_member_use
+   info • 'onLoadError' is deprecated and shouldn't be used. Use onReceivedError instead • lib/view/components/webview/webview_widget.dart:120:11 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/auth/kyc/widget/widget/choose_file_list_item.dart:24:75 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/auth/profile_complete/widget/image_widget.dart:37:74 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/auth/registration/widget/country_bottom_sheet_plus.dart:105:60 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/auth/registration/widget/country_bottom_sheet_plus.dart:236:60 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/auth/registration/widget/registration_form.dart:266:62 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/auth/registration/widget/registration_form.dart:268:60 • deprecated_member_use
+   info • The file name 'social_auth_button-widget.dart' isn't a lower_case_with_underscores identifier • lib/view/screens/auth/social_auth/widgets/social_auth_button-widget.dart:1:1 • file_names
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/auth/social_auth/widgets/social_auth_button-widget.dart:31:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/auth/two_factor_screen/two_factor_setup_screen.dart:129:68 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/auth/two_factor_screen/two_factor_setup_screen.dart:163:84 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/blogs/blog_card_widget.dart:45:60 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/blogs/blogs_details_screen.dart:64:60 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/change-password/change_password_screen.dart:72:91 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/dashboard_screen.dart:69:58 • deprecated_member_use
+warning • The left operand can't be null, so the right operand is never executed • lib/view/screens/dashboard/screen/home/widgets/home_screen_balance_card.dart:138:132 • dead_null_aware_expression
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/home/widgets/kyc_warning_section.dart:40:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/market/widgets/market_sort_filter_button.dart:58:133 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/market/widgets/market_sort_filter_button.dart:58:185 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/market/widgets/market_sort_filter_button.dart:63:132 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/market/widgets/market_sort_filter_button.dart:63:184 • deprecated_member_use
+   info • 'activeColor' is deprecated and shouldn't be used. Use activeTrackColor instead. This feature was deprecated after v3.24.0-0.2.pre • lib/view/screens/dashboard/screen/profile_and_settings/profile_and_settings_screen.dart:266:35 • deprecated_member_use
+   info • 'trackColor' is deprecated and shouldn't be used. Use inactiveTrackColor instead. This feature was deprecated after v3.24.0-0.2.pre • lib/view/screens/dashboard/screen/profile_and_settings/profile_and_settings_screen.dart:267:35 • deprecated_member_use
+   info • 'activeColor' is deprecated and shouldn't be used. Use activeTrackColor instead. This feature was deprecated after v3.24.0-0.2.pre • lib/view/screens/dashboard/screen/profile_and_settings/screen/security_setup_screen.dart:156:43 • deprecated_member_use
+   info • 'trackColor' is deprecated and shouldn't be used. Use inactiveTrackColor instead. This feature was deprecated after v3.24.0-0.2.pre • lib/view/screens/dashboard/screen/profile_and_settings/screen/security_setup_screen.dart:157:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/profile_and_settings/screen/widget/fingerprint_bottom_sheet.dart:34:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/profile_and_settings/widgets/account_user_card.dart:114:152 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/profile_and_settings/widgets/delete_account_bottom_sheet.dart:39:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/profile_and_settings/widgets/language_dialog_body.dart:54:54 • deprecated_member_use
+   info • Missing type annotation • lib/view/screens/dashboard/screen/wallet/screen/wallet_history/wallet_history_screen.dart:37:3 • strict_top_level_inference
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/wallet/screen/wallet_history/wallet_history_screen.dart:369:188 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/wallet/screen/wallet_history/wallet_history_screen.dart:369:224 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/wallet/screen/wallet_history/wallet_history_screen.dart:473:129 • deprecated_member_use
+   info • Missing type annotation • lib/view/screens/dashboard/screen/wallet/screen/wallet_history/widgets/bottom_sheet.dart:16:1 • strict_top_level_inference
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/wallet/screen/wallet_history/widgets/bottom_sheet.dart:34:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/wallet/screen/wallet_single_coin_details/widgets/single_coin_history_list_widget.dart:74:213 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/wallet/screen/wallet_single_coin_details/widgets/single_coin_history_list_widget.dart:74:251 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/wallet/screen/wallet_single_coin_details/widgets/single_coin_history_list_widget.dart:186:99 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/dashboard/screen/wallet/screen/wallet_single_coin_details/widgets/single_coin_screen_all_widget_card.dart:401:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/deposit/history/custom_deposit_card.dart:49:126 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/deposit/widgets/deposit_gateway_list_widget.dart:35:52 • deprecated_member_use
+   info • The file name 'webview_widget copy.dart' isn't a lower_case_with_underscores identifier • lib/view/screens/deposit/widgets/webview/webview_widget copy.dart:1:1 • file_names
+   info • 'AndroidInAppWebViewController' is deprecated and shouldn't be used. Use InAppWebViewController instead • lib/view/screens/deposit/widgets/webview/webview_widget.dart:43:7 • deprecated_member_use
+   info • 'setWebContentsDebuggingEnabled' is deprecated and shouldn't be used. Use InAppWebViewController.setWebContentsDebuggingEnabled instead • lib/view/screens/deposit/widgets/webview/webview_widget.dart:43:37 • deprecated_member_use
+   info • 'initialOptions' is deprecated and shouldn't be used. Use initialSettings instead • lib/view/screens/deposit/widgets/webview/webview_widget.dart:58:11 • deprecated_member_use
+   info • 'InAppWebViewGroupOptions' is deprecated and shouldn't be used. Use InAppWebViewSettings instead • lib/view/screens/deposit/widgets/webview/webview_widget.dart:58:27 • deprecated_member_use
+   info • 'InAppWebViewOptions' is deprecated and shouldn't be used. Use InAppWebViewSettings instead • lib/view/screens/deposit/widgets/webview/webview_widget.dart:59:28 • deprecated_member_use
+   info • 'AndroidInAppWebViewOptions' is deprecated and shouldn't be used. Use InAppWebViewSettings instead • lib/view/screens/deposit/widgets/webview/webview_widget.dart:66:22 • deprecated_member_use
+   info • 'IOSInAppWebViewOptions' is deprecated and shouldn't be used. Use InAppWebViewSettings instead • lib/view/screens/deposit/widgets/webview/webview_widget.dart:69:18 • deprecated_member_use
+   info • 'androidOnPermissionRequest' is deprecated and shouldn't be used. Use onPermissionRequest instead • lib/view/screens/deposit/widgets/webview/webview_widget.dart:73:11 • deprecated_member_use
+   info • 'PermissionRequestResponse' is deprecated and shouldn't be used. Use PermissionResponse instead • lib/view/screens/deposit/widgets/webview/webview_widget.dart:74:20 • deprecated_member_use
+   info • 'PermissionRequestResponseAction' is deprecated and shouldn't be used. Use PermissionResponseAction instead • lib/view/screens/deposit/widgets/webview/webview_widget.dart:74:76 • deprecated_member_use
+   info • 'onLoadError' is deprecated and shouldn't be used. Use onReceivedError instead • lib/view/screens/deposit/widgets/webview/webview_widget.dart:109:11 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/edit_profile/edit_profile_screen.dart:104:72 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/edit_profile/edit_profile_screen.dart:123:71 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/edit_profile/edit_profile_screen.dart:141:71 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/edit_profile/edit_profile_screen.dart:165:71 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/edit_profile/edit_profile_screen.dart:200:71 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/edit_profile/edit_profile_screen.dart:220:71 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/edit_profile/edit_profile_screen.dart:240:71 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/edit_profile/edit_profile_screen.dart:260:71 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/language/widget/language_card.dart:70:58 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/notification/widgets/notification_list.dart:46:55 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/notification/widgets/notification_list.dart:48:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/notification/widgets/notification_list.dart:50:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/notification/widgets/notification_list.dart:51:52 • deprecated_member_use
+   info • Missing type annotation • lib/view/screens/onboard/onboard_screen.dart:28:28 • strict_top_level_inference
+warning • Unused import: 'package:get/get.dart' • lib/view/screens/options/options_chain_webview_screen.dart:3:8 • unused_import
+   info • 'initialOptions' is deprecated and shouldn't be used. Use initialSettings instead • lib/view/screens/options/options_chain_webview_screen.dart:60:13 • deprecated_member_use
+   info • 'InAppWebViewGroupOptions' is deprecated and shouldn't be used. Use InAppWebViewSettings instead • lib/view/screens/options/options_chain_webview_screen.dart:60:29 • deprecated_member_use
+   info • 'InAppWebViewOptions' is deprecated and shouldn't be used. Use InAppWebViewSettings instead • lib/view/screens/options/options_chain_webview_screen.dart:61:30 • deprecated_member_use
+   info • 'AndroidInAppWebViewOptions' is deprecated and shouldn't be used. Use InAppWebViewSettings instead • lib/view/screens/options/options_chain_webview_screen.dart:68:24 • deprecated_member_use
+   info • 'IOSInAppWebViewOptions' is deprecated and shouldn't be used. Use InAppWebViewSettings instead • lib/view/screens/options/options_chain_webview_screen.dart:71:20 • deprecated_member_use
+   info • 'androidOnPermissionRequest' is deprecated and shouldn't be used. Use onPermissionRequest instead • lib/view/screens/options/options_chain_webview_screen.dart:75:13 • deprecated_member_use
+   info • 'PermissionRequestResponse' is deprecated and shouldn't be used. Use PermissionResponse instead • lib/view/screens/options/options_chain_webview_screen.dart:76:22 • deprecated_member_use
+   info • 'PermissionRequestResponseAction' is deprecated and shouldn't be used. Use PermissionResponseAction instead • lib/view/screens/options/options_chain_webview_screen.dart:78:27 • deprecated_member_use
+   info • 'onLoadError' is deprecated and shouldn't be used. Use onReceivedError instead • lib/view/screens/options/options_chain_webview_screen.dart:90:13 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/preview_image/preview_image.dart:52:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/preview_image/preview_image.dart:64:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/profile/widget/card_column.dart:47:106 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/profile/widget/profile_view_bottom_nav_bar.dart:26:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/referral/referral_screen.dart:96:66 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/referral/referral_screen.dart:99:94 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/referral/widgets/all_referral_list_card_widget.dart:29:120 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/referral/widgets/all_referral_list_card_widget.dart:41:60 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/ticket/all_support_ticket_screen.dart:139:150 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/ticket/all_support_ticket_screen.dart:155:170 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/ticket/support_ticket_details/support_ticket_details.dart:80:85 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/ticket/support_ticket_details/support_ticket_details.dart:97:121 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/ticket/support_ticket_details/support_ticket_details.dart:154:70 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/ticket/support_ticket_details/support_ticket_details.dart:309:68 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/ticket/support_ticket_details/support_ticket_details.dart:359:65 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/ticket/ticket_screen.dart:100:233 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/ticket/ticket_screen.dart:131:130 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/ticket/ticket_screen.dart:146:150 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/ticket/ticket_screen.dart:162:146 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/ticket/widget/ticket_row.dart:56:81 • deprecated_member_use
+   info • The type of the right operand ('double') isn't a subtype or a supertype of the left operand ('Widget') • lib/view/screens/trade_page/screen/buy_sell_screen/trade_buy_sell_screen.dart:342:61 • unrelated_type_equality_checks
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/trade_page/screen/buy_sell_screen/widgets/buy_form_widget.dart:224:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/trade_page/screen/buy_sell_screen/widgets/change_buy_sell_type_bottom_sheet.dart:34:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/trade_page/screen/buy_sell_screen/widgets/sell_form_widget.dart:229:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/trade_page/screen/buy_sell_screen/widgets/trade_buy_sell_text_field.dart:67:97 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/trade_page/screen/buy_sell_screen/widgets/trade_buy_sell_text_field.dart:87:111 • deprecated_member_use
+   info • Missing type annotation • lib/view/screens/trade_page/screen/my_order_history/my_order_history_screen.dart:30:3 • strict_top_level_inference
+   info • Missing type annotation • lib/view/screens/trade_page/screen/my_order_history/widgets/bottom_sheet.dart:14:1 • strict_top_level_inference
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/trade_page/screen/my_order_history/widgets/order_history_page_list_tile_widget.dart:43:157 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/trade_page/screen/my_order_history/widgets/order_history_page_list_tile_widget.dart:43:195 • deprecated_member_use
+   info • Missing type annotation • lib/view/screens/trade_page/screen/trade_history/trade_history_screen.dart:30:3 • strict_top_level_inference
+   info • Missing type annotation • lib/view/screens/trade_page/screen/trade_history/widgets/bottom_sheet.dart:14:1 • strict_top_level_inference
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/trade_page/screen/trade_history/widgets/trade_history_page_list_tile_widget.dart:41:148 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/trade_page/screen/trade_history/widgets/trade_history_page_list_tile_widget.dart:41:184 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/trade_page/widgets/change_trade_currency_symbol_widget.dart:45:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/trade_page/widgets/order_list_tile_widget.dart:45:157 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/trade_page/widgets/order_list_tile_widget.dart:45:195 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/trade_page/widgets/trade_screen_bottom_nav_bar.dart:31:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/transfer/widgets/transfer_details_screen.dart:162:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/transfer/widgets/transfer_swap_wallet_widget.dart:41:70 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/transfer/widgets/transfer_swap_wallet_widget.dart:48:72 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/transfer/widgets/transfer_swap_wallet_widget.dart:74:70 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/transfer/widgets/transfer_swap_wallet_widget.dart:89:60 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/transfer/widgets/transfer_swap_wallet_widget.dart:104:70 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/transfer/widgets/transfer_swap_wallet_widget.dart:111:72 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/transfer/widgets/transfer_swap_wallet_widget.dart:137:70 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/withdraw/screen/history/custom_withdraw_card.dart:55:126 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/withdraw/screen/history/custom_withdraw_tile_details_bottom_sheet.dart:38:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/withdraw/screen/withdraw_confirmation_screen/widget/choose_file_list_item.dart:26:75 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/withdraw/screen/withdraw_details/withdraw_details_screen.dart:160:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/view/screens/withdraw/widgets/withdraw_gateway_list_widget.dart:35:52 • deprecated_member_use
+   info • Don't invoke 'print' in production code • scratch/test_pin.dart:4:3 • avoid_print
+   info • Unnecessary braces in a string interpolation • scratch/test_pin.dart:4:28 • unnecessary_brace_in_string_interps
+   info • Don't invoke 'print' in production code • scratch/test_pin.dart:5:3 • avoid_print
+   info • Unnecessary braces in a string interpolation • scratch/test_pin.dart:5:20 • unnecessary_brace_in_string_interps
+   info • Don't invoke 'print' in production code • scratch/test_pin.dart:6:3 • avoid_print
+   info • Unnecessary braces in a string interpolation • scratch/test_pin.dart:6:29 • unnecessary_brace_in_string_interps
+   info • Don't invoke 'print' in production code • scratch/test_pin.dart:7:3 • avoid_print
+   info • Unnecessary braces in a string interpolation • scratch/test_pin.dart:7:25 • unnecessary_brace_in_string_interps
+

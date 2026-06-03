@@ -1,0 +1,410 @@
+Vinance
+Withdraw Information
+Withdraw Details
+Withdraw Limit
+Withdraw Confirm
+Withdraw Via
+Authorization Method
+Please select an authorization mode
+File download at
+Error downloading file
+Downloading
+File downloaded successfully
+Select Payment Method
+Select Withdraw Currency
+Select Payment Gateway
+Order Type
+Select a wallet
+Download
+Remark
+Any
+Email
+Attachment
+Deposit Charge
+Final Amount
+Yes
+No
+Trx No
+Please
+Select Remarks
+Select Trx Type
+No withdraw request found
+No deposit history found
+Before Charge
+Remaining Balance
+No transaction history found
+No Order history found
+No wallet found
+No Sell Order found
+No Buy Order found
+No Trade history found
+Enter transaction no.
+Latest Transactions
+Username
+Password
+Remember Me
+Forgot Password?
+Sign In
+Sign Up
+Or sign in with
+Or sign up with
+Metamask
+Google
+Linkedin
+First Name
+Last Name
+Last
+Country
+Confirm Password
+Already have an account?
+Address
+Search Country
+KYC
+KYC Verification
+is required
+Choose File
+Your KYC is under review
+You are already verified
+KYC Verification Required
+KYC Verification Pending
+Dear user, Your submitted KYC Data is currently in review. Please take some time to review your Data. Thank you so much for your cooperation.
+Please submit the required KYC information to verify yourself. Otherwise, you couldn't make any Withdraw request.
+Are you sure that you are agree?
+Are you sure to cancel this order?
+Verify
+Verify Metamask Login
+Connect to Metamask
+Submit OTP
+Withdrawals
+Withdraw
+See All
+All
+Home
+Market
+Market Price
+Portfolio
+Service
+Services
+Switch rider
+New Rider
+Activity
+Reward
+Rewards
+Transaction
+Transaction ID
+Withdraw History
+Trx
+Amount
+Rate
+Date
+Charge
+After Charge
+Payable Amount
+Payable
+Amount with charge
+Withdraw Money
+Reset Password
+Your new password must different form \nprevious used passwords
+New Password
+Enter new password
+Change Password
+Current Password
+Skip
+Done
+Submit
+Next
+Share Now
+You Refer link
+Users Referred By Me
+Name
+Full Name
+Phone
+Zip Code
+State
+City
+Edit Profile
+Update Profile
+Account & Settings
+Settings
+General
+Select Language
+Security
+Two Factor Authentication
+Enter 6-digit code from your two factor authenticator APP.
+Google Authenticator Code
+Enter Google Authenticator Code
+Are you sure you want to exit the app?
+Has uppercase letter
+Has lowercase letter
+Has digit
+Has special character
+Min of 6 characters
+Receivable
+Conversion Rate
+In
+Initiated
+Recover Account
+Forgotten Password
+Enter your OTP
+Username or Email
+Enter your username or email
+Create an account
+Please fill out this field
+To secure your account please provide a secure password
+Let’s create new password for your account
+Enter your email or username below to recover your account
+We just sent a mail to {email}. Please enter the OTP code below to identify your account.
+Phone No
+Mobile Number
+Password reset email sent to
+Email Verification
+We've sent you an access code via email for email verification
+Didn't receive code?
+Resend Code
+Resend Code
+Sms Verification
+Profile Complete
+Complete your profile
+You need to complete your profile by providing below information.
+Enter your
+Notification
+Open
+Completed
+Canceled
+Buy
+Sell
+Convert
+Send
+Transfer
+Withdraw request sent successfully
+Transfer Successful
+Transfer Details
+Deposit
+Deposit Successful
+Deposit Info
+Transactions
+Deposit History
+Post Balance
+Details
+Wallet
+Wallets
+Type
+Profile
+Profile Information
+Address Information
+Theme
+Preference
+Language
+Transaction No.
+Privacy & Policy
+Forget Password
+Don't have an account?
+Enter username or email
+Policies
+Verification Failed
+Email Verification Failed
+Email Verification Success
+Enter your password
+Sorry! there are no data to show
+Sorry! there are no data to show
+Sorry! there are no news to show
+No data found
+Payment Method
+No payment gateway available for {currency} Currency
+No withdraw gateway available for {currency} Currency
+I agree with the
+Create new password
+Please provide a strong password to protect your account
+Enter current password
+Enter new password
+Enter confirm password
+Add Withdraw
+Enter Amount
+Enter Rate
+Please enter an amount
+Withdraw Method
+Status
+Withdraw Method Edit
+Withdraw Preview
+Search by trx id
+Search
+No Transaction Found
+Trx Id
+Active
+Completed
+Cancel
+Time
+Get App
+Don't have
+Bank Name
+Account
+Account Name
+Account balance
+Wallet Balance
+Wallet Activity
+Estimated Asset Value
+Account Number
+Routing Number
+PAY NOW
+No Deposit Found
+No Withdraw Found
+OTP Verification
+Show More
+More
+success
+version
+Sign Out Successfully
+Enter valid email
+Enter your current password
+Enter your new password
+Password must be contain 1 special character and number
+Password doesn't match
+Enter first name
+Enter last name
+Username must be 6 character
+Password Verification
+Resend the code successfully
+Failed to resend code
+Something went wrong
+Invalid amount
+Verification Success
+Enter your username
+Enter receiver username
+Enter your email
+Enter your phone number
+Confirm your password
+Didn't receive the code?
+We've sent you an access code to your phone number for SMS verification
+Select a country
+Request Failed
+Request Success
+Login failed,please try again
+Select One
+SMS
+No internet connection
+Retry
+Otp field cant be empty
+Sorry something went wrong here, go back and retry after sometimes
+second ago
+minutes ago
+hour ago
+days ago
+just now
+Now
+FAQs
+Frequently Asked Questions
+Referrals
+My Referrals
+logout
+Menu
+Bad Response Format!
+Server Error
+Unauthorized
+your email
+Password change successfully
+Deposit Limit
+Error
+Trx Type
+Approved
+Succeed
+Pending
+Rejected
+Transaction Type
+Remark Type
+You must agree with our privacy & policies
+Continue Payment
+Continue
+Fingerprints Login
+Use fingerprint instead?
+Watch list
+Coin Ranking
+Latest News
+Markets Overview
+Top Exchanges Coin
+Highlight Coin
+New Coin
+Trade
+Gainers
+Losers
+Crypto
+Currency
+Fiat
+Search for a cryptocurrency
+Assets
+Losers
+Short by
+24h change
+1h change
+Price
+Vol
+vol.
+Volume (24H)
+Name
+Market Cap
+Order Book
+History
+Order History
+Trade History
+Transfer History
+Transaction History
+My Order
+Price
+Filled
+Total
+Available
+Avbl
+Max buy
+Min buy
+Max Sell
+Min Sell
+Available Balance
+In Order
+Total Balance
+Total Deposit
+Total Transaction
+Total Trades
+Open Order
+Completed Order
+Canceled Order
+Total Order
+Total Withdraw
+Limit
+Stop Limit
+Minimum
+Fee
+Est. Fee
+Other Users
+Other Wallet
+MAX
+Spot Wallets
+Spot Wallet
+Spot
+Funding Wallets
+Funding Wallet
+Funding
+Select Currency
+Gateway
+Via
+From
+To
+Copied to your clipboard!
+Setup Key
+Add Your Account
+Enable 2FA Security
+Disable 2FA Security
+Use the QR code or setup key on your Google Authenticator app to add your account.
+Google Authenticator is a multifactor app for mobile devices. It generates timed codes used during the 2-step verification process. To use Google Authenticator, install the Google Authenticator application on your mobile device.
+Join The Worlds Largest Crypto Exchange
+Sign Up / Sign In
+Setup your FingerPrint
+Update your fingerprint authentication status
+Please try again after 
+Later
+Make sure your phone support Biometric
+Setup your fingerprint & make your account more secure and faster and easy access to your account
+Enable Fingerprint
+Biometric enabled successfully
+Scan your fingerprint to authenticate
+Disable Fingerprint
+No contacts found
+Permanently Locked Please lock your Phone and Try again

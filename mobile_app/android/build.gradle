@@ -1,0 +1,78 @@
+buildscript {
+    ext.kotlin_version = '2.1.0'
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        // classpath 'com.android.tools.build:gradle:7.3.1'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.google.gms:google-services:4.3.15'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.buildDir = '../build'
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(':app')
+}
+
+subprojects {
+    def configureProject = { prj ->
+        if (prj.hasProperty('android')) {
+            prj.android {
+                if (namespace == null) {
+                    namespace prj.group.toString()
+                }
+            }
+        }
+    }
+
+    if (it.state.executed) {
+        configureProject(it)
+    } else {
+        it.afterEvaluate {
+            configureProject(it)
+        }
+    }
+}
+
+subprojects {
+    configurations.all {
+        resolutionStrategy {
+            force 'androidx.core:core:1.13.1'
+            force 'androidx.core:core-ktx:1.13.1'
+            force 'androidx.activity:activity:1.9.3'
+            force 'androidx.activity:activity-ktx:1.9.3'
+            force 'androidx.fragment:fragment:1.8.0'
+            force 'androidx.fragment:fragment-ktx:1.8.0'
+            force 'androidx.browser:browser:1.8.0'
+            force 'androidx.media3:media3-exoplayer:1.3.1'
+            force 'androidx.media3:media3-exoplayer-rtsp:1.3.1'
+            force 'androidx.media3:media3-exoplayer-hls:1.3.1'
+            force 'androidx.media3:media3-exoplayer-dash:1.3.1'
+            force 'androidx.media3:media3-exoplayer-smoothstreaming:1.3.1'
+            force 'androidx.media3:media3-common:1.3.1'
+            force 'androidx.media3:media3-datasource:1.3.1'
+            force 'androidx.media3:media3-decoder:1.3.1'
+            force 'androidx.media3:media3-container:1.3.1'
+            force 'androidx.media3:media3-ui:1.3.1'
+            force 'androidx.media3:media3-session:1.3.1'
+        }
+    }
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}
+

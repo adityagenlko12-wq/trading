@@ -2716,6 +2716,90 @@ def api_get_stock_quote(symbol):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/indices/quotes')
+@login_required
+def api_get_all_indices_quotes():
+    """API: Get real-time quotes for all enabled indices (NIFTY, BANKNIFTY, SENSEX, FINNIFTY, etc.)."""
+    # Fallback data when live prices are unavailable
+    FALLBACK = {
+        "NIFTY":      {"ltp": 24500.00, "day_change": 120.50,  "percentage_change": 0.49,  "open": 24380.0, "high": 24550.0, "low": 24300.0},
+        "BANKNIFTY":  {"ltp": 52800.00, "day_change": 320.75,  "percentage_change": 0.61,  "open": 52480.0, "high": 52900.0, "low": 52200.0},
+        "SENSEX":     {"ltp": 80500.00, "day_change": 410.20,  "percentage_change": 0.51,  "open": 80090.0, "high": 80600.0, "low": 79900.0},
+        "FINNIFTY":   {"ltp": 23200.00, "day_change": 98.30,   "percentage_change": 0.43,  "open": 23102.0, "high": 23250.0, "low": 23050.0},
+        "MIDCPNIFTY": {"ltp": 12450.00, "day_change": 55.10,   "percentage_change": 0.44,  "open": 12395.0, "high": 12480.0, "low": 12380.0},
+    }
+    try:
+        from index_config import AVAILABLE_INDICES
+        from data_fetcher import UpstoxDataFetcher
+
+        # Collect all index instrument keys
+        index_list = list(AVAILABLE_INDICES.values())
+        sym_map = {cfg.symbol: key for key, cfg in AVAILABLE_INDICES.items()}
+
+        async def fetch_all():
+            fetcher = UpstoxDataFetcher()
+            try:
+                keys = [cfg.symbol for cfg in index_list]
+                raw = await fetcher.get_quotes_batch(keys)
+                return raw
+            finally:
+                await fetcher.close()
+
+        try:
+            raw_quotes = run_async_in_new_loop(fetch_all)
+        except Exception:
+            raw_quotes = {}
+
+        results = []
+        for cfg in index_list:
+            sym_key = cfg.symbol
+            # Normalise separator used by Upstox response (colon vs pipe)
+            raw_val = raw_quotes.get(sym_key) or raw_quotes.get(sym_key.replace("|", ":")) or {}
+
+            if raw_val:
+                ohlc       = raw_val.get("ohlc") or {}
+                open_p     = float(ohlc.get("open") or 0)
+                last_price = float(raw_val.get("last_price") or 0)
+                net_change = float(raw_val.get("net_change") or 0)
+                pct_change = (net_change / open_p * 100) if open_p > 0 else 0.0
+                results.append({
+                    "symbol":            cfg.name,
+                    "display_name":      cfg.display_name,
+                    "exchange":          cfg.exchange,
+                    "enabled":           cfg.enabled,
+                    "lot_size":          cfg.lot_size,
+                    "ltp":               last_price,
+                    "day_change":        net_change,
+                    "percentage_change": round(pct_change, 2),
+                    "open":              open_p,
+                    "high":              float(ohlc.get("high") or 0),
+                    "low":               float(ohlc.get("low") or 0),
+                    "close":             float(ohlc.get("close") or 0),
+                    "is_live":           True,
+                })
+            else:
+                fb = FALLBACK.get(cfg.name, {})
+                results.append({
+                    "symbol":            cfg.name,
+                    "display_name":      cfg.display_name,
+                    "exchange":          cfg.exchange,
+                    "enabled":           cfg.enabled,
+                    "lot_size":          cfg.lot_size,
+                    "ltp":               fb.get("ltp", 0),
+                    "day_change":        fb.get("day_change", 0),
+                    "percentage_change": fb.get("percentage_change", 0),
+                    "open":              fb.get("open", 0),
+                    "high":              fb.get("high", 0),
+                    "low":              fb.get("low", 0),
+                    "close":             0,
+                    "is_live":           False,
+                })
+
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/admin/reset_user', methods=['POST'])
 @admin_required
 def api_admin_reset_user():

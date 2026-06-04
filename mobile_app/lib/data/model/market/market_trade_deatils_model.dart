@@ -220,6 +220,14 @@ class MarketData {
   String? percentChange24H;
   String? marketCap;
   HtmlClasses? htmlClasses;
+  String? open;
+  String? high;
+  String? low;
+  String? prevClose;
+  String? dayChange;
+  String? exchange;
+  String? yearHigh;
+  String? yearLow;
 
   MarketData({
     this.id,
@@ -228,6 +236,14 @@ class MarketData {
     this.percentChange24H,
     this.marketCap,
     this.htmlClasses,
+    this.open,
+    this.high,
+    this.low,
+    this.prevClose,
+    this.dayChange,
+    this.exchange,
+    this.yearHigh,
+    this.yearLow,
   });
 
   factory MarketData.fromJson(Map<String, dynamic> json) => MarketData(
@@ -237,6 +253,14 @@ class MarketData {
         percentChange24H: json["percent_change_24h"]?.toString(),
         marketCap: json["market_cap"]?.toString(),
         htmlClasses: json["html_classes"] == null ? null : HtmlClasses.fromJson(json["html_classes"]),
+        open: json["open"]?.toString(),
+        high: json["high"]?.toString(),
+        low: json["low"]?.toString(),
+        prevClose: json["prev_close"]?.toString(),
+        dayChange: json["day_change"]?.toString(),
+        exchange: json["exchange"]?.toString(),
+        yearHigh: json["year_high"]?.toString(),
+        yearLow: json["year_low"]?.toString(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -246,6 +270,14 @@ class MarketData {
         "percent_change_24h": percentChange24H,
         "market_cap": marketCap,
         "html_classes": htmlClasses?.toJson(),
+        "open": open,
+        "high": high,
+        "low": low,
+        "prev_close": prevClose,
+        "day_change": dayChange,
+        "exchange": exchange,
+        "year_high": yearHigh,
+        "year_low": yearLow,
       };
 }
 

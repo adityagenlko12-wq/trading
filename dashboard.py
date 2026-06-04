@@ -1959,8 +1959,22 @@ def get_candles(index_name):
         else:
             # Resolve stock symbol to instrument key
             fetcher = UpstoxDataFetcher()
-            stocks = fetcher.get_top_stocks()
-            stock_info = next((s for s in stocks if s["symbol"] == index_name.upper()), None)
+            legacy_mappings = {
+                "ZOMATO": "ETERNAL",
+                "ZOMA": "ETERNAL"
+            }
+            target_sym = legacy_mappings.get(index_name.upper(), index_name.upper())
+            
+            all_inst = fetcher.get_all_instruments()
+            stock_info = None
+            for s in all_inst:
+                if s["symbol"] == target_sym:
+                    if s.get("segment") == "NSE_EQ":
+                        stock_info = s
+                        break
+                    elif stock_info is None:
+                        stock_info = s
+            
             if stock_info:
                 symbol_key = stock_info["key"]
             else:
@@ -2274,9 +2288,15 @@ def api_search_stocks():
     all_instruments = fetcher.get_all_instruments()
     filtered = []
     
+    legacy_mappings = {
+        "ZOMATO": "ETERNAL",
+        "ZOMA": "ETERNAL"
+    }
+    target_symbol = legacy_mappings.get(query, query)
+    
     # 1. Look for exact match first
     for s in all_instruments:
-        if s["symbol"] == query:
+        if s["symbol"] == target_symbol:
             filtered.append({
                 "symbol": s["symbol"],
                 "name": s["name"],
@@ -2349,20 +2369,34 @@ def api_get_stock_analysis(symbol):
         symbol_key = symbol
         is_index = False
         
+        legacy_mappings = {
+            "ZOMATO": "ETERNAL",
+            "ZOMA": "ETERNAL"
+        }
+        target_sym = legacy_mappings.get(symbol, symbol)
+        
         if index_config:
             symbol_key = index_config.symbol
             company_name = index_config.display_name
             is_index = True
         else:
             fetcher = UpstoxDataFetcher()
-            stocks = fetcher.get_top_stocks()
-            stock_info = next((s for s in stocks if s["symbol"] == symbol), None)
+            all_inst = fetcher.get_all_instruments()
+            stock_info = None
+            for s in all_inst:
+                if s["symbol"] == target_sym:
+                    if s.get("segment") == "NSE_EQ":
+                        stock_info = s
+                        break
+                    elif stock_info is None:
+                        stock_info = s
+            
             if stock_info:
                 symbol_key = stock_info["key"]
                 company_name = stock_info["name"]
             else:
-                symbol_key = symbol
-                company_name = symbol
+                symbol_key = target_sym
+                company_name = target_sym
                 
         # Fetch live quote
         async def fetch_quote_async():
@@ -2709,10 +2743,24 @@ def api_get_stock_quote(symbol):
                 from index_config import AVAILABLE_INDICES
                 query_syms = []
                 sym_info_map = {}
-                stocks = fetcher.get_top_stocks()
+                all_inst = fetcher.get_all_instruments()
+                
+                # Create a lookup map of symbol to instrument mapping
+                inst_by_symbol = {}
+                for item in all_inst:
+                    sym_name = item['symbol']
+                    # Prioritize NSE equities and indexes
+                    if sym_name not in inst_by_symbol or item['segment'] in ('NSE_EQ', 'NSE_INDEX'):
+                        inst_by_symbol[sym_name] = item
+
+                legacy_mappings = {
+                    "ZOMATO": "ETERNAL",
+                    "ZOMA": "ETERNAL"
+                }
                 
                 for s_upper in symbols:
-                    index_config = AVAILABLE_INDICES.get(s_upper)
+                    target_sym = legacy_mappings.get(s_upper, s_upper)
+                    index_config = AVAILABLE_INDICES.get(target_sym)
                     if index_config:
                         query_syms.append(index_config.symbol)
                         sym_info_map[index_config.symbol] = {
@@ -2720,7 +2768,7 @@ def api_get_stock_quote(symbol):
                             "name": index_config.display_name
                         }
                     else:
-                        stock_info = next((st for st in stocks if st["symbol"] == s_upper), None)
+                        stock_info = inst_by_symbol.get(target_sym)
                         if stock_info:
                             query_syms.append(stock_info["key"])
                             sym_info_map[stock_info["key"]] = {

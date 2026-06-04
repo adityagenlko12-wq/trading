@@ -568,6 +568,9 @@ class UpstoxDataFetcher:
                     if segment in allowed_segments:
                         symbol = item.get('trading_symbol') or item.get('name') or ''
                         name = item.get('name') or ''
+                        short_name = item.get('short_name') or ''
+                        if short_name and short_name.lower() not in name.lower():
+                            name = f"{name} ({short_name})"
                         key = item.get('instrument_key') or ''
                         exchange = item.get('exchange') or ''
                         
@@ -675,8 +678,14 @@ class UpstoxDataFetcher:
         keys_to_query = []
         key_to_meta = {}
         
+        legacy_mappings = {
+            "ZOMATO": "ETERNAL",
+            "ZOMA": "ETERNAL"
+        }
+        
         for sym in symbols:
             sym_upper = sym.upper()
+            sym_upper = legacy_mappings.get(sym_upper, sym_upper)
             if sym_upper in inst_by_symbol:
                 key = inst_by_symbol[sym_upper]["key"]
                 keys_to_query.append(key)

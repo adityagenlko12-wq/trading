@@ -32,14 +32,33 @@ class StockDetailController extends GetxController {
   var isLimit = false.obs;
   var quantityController = TextEditingController(text: '1');
   var priceController = TextEditingController();
+  var rxQuantity = 1.0.obs;
+  var rxPrice = 0.0.obs;
   
   var orderPlacing = false.obs;
   Timer? _detailTimer;
+
+  @override
+  void onInit() {
+    super.onInit();
+    quantityController.addListener(() {
+      rxQuantity.value = double.tryParse(quantityController.text) ?? 1.0;
+    });
+    priceController.addListener(() {
+      rxPrice.value = double.tryParse(priceController.text) ?? 0.0;
+    });
+  }
 
   void initialize(String symbol) {
     stockQuote.value = null; // Reset to show loader immediately
     optionChainData.value = null; // Reset option chain
     _detailTimer?.cancel();
+    
+    // Reset quantity and price input controllers
+    quantityController.text = '1';
+    priceController.text = '';
+    rxQuantity.value = 1.0;
+    rxPrice.value = 0.0;
     
     fetchQuote(symbol);
     fetchOptionChain(symbol);
@@ -161,8 +180,8 @@ class StockDetailController extends GetxController {
     generateChartData();
   }
 
-  double get quantity => double.tryParse(quantityController.text) ?? 1.0;
-  double get price => double.tryParse(priceController.text) ?? (stockQuote.value?.price ?? 0.0);
+  double get quantity => rxQuantity.value;
+  double get price => rxPrice.value == 0.0 ? (stockQuote.value?.price ?? 0.0) : rxPrice.value;
   
   double get totalAmount => quantity * price;
   double get brokerage => totalAmount * 0.0005; // 0.05% brokerage fee mock

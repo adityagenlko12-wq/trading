@@ -13,6 +13,7 @@ files_to_upload = [
     ("core/app/Lib/CurrencyDataProvider/Upstox.php", "core/app/Lib/CurrencyDataProvider/Upstox.php"),
     ("core/app/Http/Controllers/User/OptionChainController.php", "core/app/Http/Controllers/User/OptionChainController.php"),
     ("core/resources/views/templates/basic/user/options/chain.blade.php", "core/resources/views/templates/basic/user/options/chain.blade.php"),
+    ("get_token.php", "get_token.php"),
 ]
 
 local_base = "/Users/adityaverma/Downloads/vinance-22nulled/code/Files"

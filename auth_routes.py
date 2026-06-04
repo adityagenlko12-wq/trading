@@ -17,8 +17,15 @@ init_admin()
 
 
 def get_current_user():
-    """Get current user from cookie."""
+    """Get current user from cookie or Authorization Bearer header."""
     token = request.cookies.get('session_token')
+    if not token:
+        # Check for Bearer token from mobile app
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:].strip()
+        elif auth_header.startswith('bearer '):
+            token = auth_header[7:].strip()
     if not token:
         return None
     return get_user_manager().get_user_from_token(token)

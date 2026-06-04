@@ -115,6 +115,9 @@ Candle format: [Timestamp, Open, High, Low, Close, Volume, OI]
 import logging
 import aiohttp
 import asyncio
+import time
+import urllib.request
+import json as _json
 from datetime import datetime, date
 from typing import List, Dict, Optional, Tuple, Any
 from urllib.parse import quote
@@ -123,6 +126,36 @@ from config import UPSTOX_CONFIG
 from indicators import StrikeData, CandleData
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Dynamic token loader - fetches latest Upstox JWT from the PHP/MySQL server
+# ---------------------------------------------------------------------------
+_token_cache = {"token": "", "fetched_at": 0}
+_TOKEN_URL = "https://trading.abdielaircon.com/get_token.php?key=vinance2024secret"
+_TOKEN_TTL = 55 * 60  # 55 minutes (tokens expire at market close ~60 min window)
+
+def fetch_live_token() -> str:
+    """Fetch the Upstox access token from PHP server; cache it for 55 min."""
+    global _token_cache
+    now = time.time()
+    if _token_cache["token"] and (now - _token_cache["fetched_at"]) < _TOKEN_TTL:
+        return _token_cache["token"]
+    try:
+        req = urllib.request.Request(
+            _TOKEN_URL,
+            headers={"User-Agent": "VirtualTradingBot/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = _json.loads(resp.read().decode())
+        token = data.get("token", "").strip()
+        if token:
+            _token_cache = {"token": token, "fetched_at": now}
+            logger.info("Upstox token refreshed from PHP server.")
+            return token
+    except Exception as e:
+        logger.warning(f"Could not fetch live token from PHP server: {e}")
+    # Fall back to env var
+    return UPSTOX_CONFIG.access_token
 
 
 class UpstoxDataFetcher:
@@ -139,7 +172,8 @@ class UpstoxDataFetcher:
     }
     
     def __init__(self, access_token: Optional[str] = None):
-        self.access_token = access_token or UPSTOX_CONFIG.access_token
+        # Always prefer the dynamically fetched token so we survive daily rotations
+        self.access_token = access_token or fetch_live_token() or UPSTOX_CONFIG.access_token
         self.base_url = UPSTOX_CONFIG.base_url
         self._session: Optional[aiohttp.ClientSession] = None
         

@@ -678,6 +678,7 @@ DASHBOARD_HTML = """
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('markets')">Markets</button>
             <button class="tab-btn" onclick="switchTab('option-chain')">Option Chain</button>
+            <button class="tab-btn" onclick="switchTab('commodity')">🪙 Commodity</button>
             <button class="tab-btn" onclick="switchTab('portfolio')">Portfolio & Holdings</button>
         </div>
 
@@ -996,6 +997,66 @@ DASHBOARD_HTML = """
                         </table>
                     </div>
                 </div>
+
+                <!-- COMMODITY TAB -->
+                <div id="commodity-tab" class="tab-content">
+
+                    <!-- Live Markets Header -->
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+                        <span class="pulse-live"></span>
+                        <span class="card-title" style="font-size:17px;">MCX Live Markets</span>
+                        <span style="margin-left:auto; font-size:12px; color:var(--text-secondary);">Auto-refresh every 5s</span>
+                    </div>
+
+                    <!-- Live Futures Cards Grid -->
+                    <div id="comm-futures-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:12px; margin-bottom:24px;">
+                        <div style="text-align:center; color:var(--text-secondary); padding:20px; grid-column:1/-1;">Loading commodity data...</div>
+                    </div>
+
+                    <!-- Top Traded Options Section -->
+                    <div class="card" style="padding:16px;">
+                        <div class="card-header" style="margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+                            <span class="card-title">📊 Top Traded Options</span>
+                            <!-- MCX / NSE Toggle -->
+                            <div style="display:flex; align-items:center; gap:8px; margin-left:auto;">
+                                <span id="comm-mcx-lbl" style="font-size:13px; font-weight:700; color:var(--accent-green);">MCX</span>
+                                <label style="position:relative; display:inline-block; width:40px; height:22px;">
+                                    <input type="checkbox" id="comm-exchange-toggle" onchange="toggleCommodityExchange()" style="opacity:0; width:0; height:0;">
+                                    <span style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:rgba(0,210,118,0.2); border:1px solid var(--accent-green); border-radius:22px; transition:.3s;"></span>
+                                    <span id="comm-toggle-thumb" style="position:absolute; height:16px; width:16px; left:3px; bottom:3px; background:var(--accent-green); border-radius:50%; transition:.3s;"></span>
+                                </label>
+                                <span id="comm-nse-lbl" style="font-size:13px; font-weight:700; color:var(--text-secondary);">NSE</span>
+                            </div>
+                        </div>
+
+                        <!-- Category Pills -->
+                        <div id="comm-cat-pills" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;"></div>
+
+                        <!-- Sub-Category Pills -->
+                        <div id="comm-subcat-pills" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;"></div>
+
+                        <!-- Options Table -->
+                        <div style="overflow-x:auto;">
+                            <table class="trade-table" id="comm-options-table">
+                                <thead>
+                                    <tr>
+                                        <th>Instrument</th>
+                                        <th>Exch</th>
+                                        <th>Type</th>
+                                        <th>Strike</th>
+                                        <th>LTP</th>
+                                        <th>Chg%</th>
+                                        <th style="text-align:right;">Trade</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="comm-options-body">
+                                    <tr><td colspan="7" style="text-align:center; color:var(--text-secondary); padding:30px;">Loading options...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <!-- END COMMODITY TAB -->
 
             </div>
 
@@ -1867,8 +1928,10 @@ DASHBOARD_HTML = """
         // Tab Switching
         function switchTab(tabId) {
             currentTab = tabId;
+            // Highlight correct tab button
             document.querySelectorAll('.tab-btn').forEach(b => {
-                b.classList.toggle('active', b.textContent.toLowerCase().includes(tabId.split('-')[0]));
+                const btnId = b.getAttribute('onclick').match(/'([^']+)'/)[1];
+                b.classList.toggle('active', btnId === tabId);
             });
             document.querySelectorAll('.tab-content').forEach(c => {
                 c.classList.toggle('active', c.id === `${tabId}-tab`);
@@ -1880,7 +1943,154 @@ DASHBOARD_HTML = """
                 fetchPortfolio();
             } else if (tabId === 'markets') {
                 initChart();
+            } else if (tabId === 'commodity') {
+                loadCommodityTab();
             }
+        }
+
+        // ================================================================
+        // COMMODITY TAB LOGIC
+        // ================================================================
+        let commData = {};
+        let commCategory = 'Bullions';
+        let commSubCategory = 'Gold';
+        let commIsMcx = true;
+        let commRefreshTimer = null;
+
+        const COMM_SUBCATS = {
+            'Bullions': ['Gold', 'Gold Mini', 'Silver', 'Silver Mini'],
+            'Energy':   ['Crude Oil', 'Crude Oil Mini', 'Natural Gas', 'Natural Gas Mini'],
+            'Metals':   ['Zinc', 'Zinc Mini', 'Aluminium', 'Aluminium Mini']
+        };
+
+        const COMM_LOT_SIZES = {
+            'GOLD':10, 'GOLDM':10, 'SILVER':30, 'SILVERM':5,
+            'CRUDEOIL':100, 'CRUDEOILM':10, 'NATURALGAS':1250, 'NATGASMINI':250,
+            'ZINC':5000, 'ZINCMINI':1000, 'ALUMINIUM':5000, 'ALUMINI':1000
+        };
+
+        async function loadCommodityTab() {
+            // Clear refresh timer if switching away
+            if (commRefreshTimer) clearInterval(commRefreshTimer);
+            await fetchCommodityData();
+            // Auto-refresh every 5 sec while commodity tab is active
+            commRefreshTimer = setInterval(() => {
+                if (currentTab === 'commodity') fetchCommodityData();
+                else clearInterval(commRefreshTimer);
+            }, 5000);
+        }
+
+        async function fetchCommodityData() {
+            try {
+                const res = await fetch('/api/commodity/data');
+                const data = await res.json();
+                if (data.error) { console.error('Commodity error:', data.error); return; }
+                commData = data;
+                renderCommodityFutures(data.live_markets || []);
+                renderCommCategoryPills();
+                renderCommSubCatPills();
+                renderCommodityOptions();
+            } catch(e) { console.error('Failed to load commodity data:', e); }
+        }
+
+        function renderCommodityFutures(markets) {
+            const grid = document.getElementById('comm-futures-grid');
+            const filtered = markets.filter(m => {
+                const isMcx = (m.key||'').includes('MCX') || (m.exchange||'') === 'MCX';
+                return commIsMcx ? isMcx : !isMcx;
+            });
+            if (!filtered.length) {
+                grid.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:20px;grid-column:1/-1;">No live data available right now.</div>';
+                return;
+            }
+            grid.innerHTML = filtered.map(m => {
+                const up = m.change >= 0;
+                const col = up ? 'var(--accent-green)' : 'var(--accent-red)';
+                const arrow = up ? '▲' : '▼';
+                return `
+                <div class="metric-card" style="cursor:pointer; border:1px solid ${up ? 'rgba(0,210,118,0.2)' : 'rgba(255,59,48,0.2)'};"
+                     onclick="openOrderForm('OPTION','${m.symbol}','BUY',0,${m.price},${COMM_LOT_SIZES[m.asset]||1})">
+                    <div class="metric-label" style="font-size:11px; margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${m.symbol}</div>
+                    <div class="metric-value" style="font-size:18px;">₹${Number(m.price).toLocaleString('en-IN',{minimumFractionDigits:2})}</div>
+                    <div style="font-size:12px; color:${col}; font-weight:600; margin-top:4px;">${arrow} ${m.change>=0?'+':''}${Number(m.change).toFixed(2)} (${Number(m.change_percent).toFixed(2)}%)</div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderCommCategoryPills() {
+            const cats = Object.keys(COMM_SUBCATS);
+            document.getElementById('comm-cat-pills').innerHTML = cats.map(cat => `
+                <button onclick="switchCommodityCategory('${cat}')" style="
+                    padding:6px 18px; border-radius:20px; font-size:13px; font-weight:700; cursor:pointer;
+                    border: 1.5px solid ${cat===commCategory ? 'var(--accent-green)' : 'var(--border-color)'};
+                    background: ${cat===commCategory ? 'rgba(0,210,118,0.12)' : 'rgba(255,255,255,0.03)'};
+                    color: ${cat===commCategory ? 'var(--accent-green)' : 'var(--text-secondary)'};
+                    transition:all .2s;">${cat}</button>`).join('');
+        }
+
+        function renderCommSubCatPills() {
+            const subs = COMM_SUBCATS[commCategory] || [];
+            document.getElementById('comm-subcat-pills').innerHTML = subs.map(sub => `
+                <button onclick="switchCommoditySubcategory('${sub}')" style="
+                    padding:4px 14px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;
+                    border: 1px solid ${sub===commSubCategory ? 'var(--accent-green)' : 'var(--border-color)'};
+                    background: ${sub===commSubCategory ? 'var(--accent-green)' : 'rgba(255,255,255,0.03)'};
+                    color: ${sub===commSubCategory ? '#000' : 'var(--text-secondary)'};
+                    transition:all .15s;">${sub}</button>`).join('');
+        }
+
+        function switchCommodityCategory(cat) {
+            commCategory = cat;
+            commSubCategory = (COMM_SUBCATS[cat]||[])[0] || '';
+            renderCommCategoryPills();
+            renderCommSubCatPills();
+            renderCommodityOptions();
+        }
+
+        function switchCommoditySubcategory(sub) {
+            commSubCategory = sub;
+            renderCommSubCatPills();
+            renderCommodityOptions();
+        }
+
+        function toggleCommodityExchange() {
+            commIsMcx = !document.getElementById('comm-exchange-toggle').checked;
+            document.getElementById('comm-mcx-lbl').style.color = commIsMcx ? 'var(--accent-green)' : 'var(--text-secondary)';
+            document.getElementById('comm-nse-lbl').style.color = !commIsMcx ? 'var(--accent-green)' : 'var(--text-secondary)';
+            document.getElementById('comm-toggle-thumb').style.left = commIsMcx ? '3px' : '21px';
+            if (commData.live_markets) renderCommodityFutures(commData.live_markets);
+        }
+
+        function renderCommodityOptions() {
+            const opts = ((commData.options||{})[commCategory]||{})[commSubCategory] || [];
+            const tbody = document.getElementById('comm-options-body');
+            if (!opts.length) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:30px;">No options found for ' + commSubCategory + '</td></tr>';
+                return;
+            }
+            tbody.innerHTML = opts.map(o => {
+                const up = (o.change||0) >= 0;
+                const col = up ? 'var(--accent-green)' : 'var(--accent-red)';
+                const assetKey = (o.symbol||'').split(' ')[0];
+                const lotSize = COMM_LOT_SIZES[assetKey] || 1;
+                return `<tr>
+                    <td style="font-weight:600;">${o.symbol||'--'}</td>
+                    <td style="color:var(--text-secondary); font-size:12px;">${o.exchange||'MCX'}</td>
+                    <td><span style="padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700;
+                        background:${(o.type==='CE') ? 'rgba(0,210,118,0.15)' : 'rgba(255,59,48,0.15)'};
+                        color:${(o.type==='CE') ? 'var(--accent-green)' : 'var(--accent-red)'};
+                        ">${o.type||'--'}</span></td>
+                    <td>${o.strike||'--'}</td>
+                    <td style="font-weight:700;">₹${Number(o.price||0).toFixed(2)}</td>
+                    <td style="color:${col}; font-weight:600;">${up?'+':''}${Number(o.change_percent||0).toFixed(2)}%</td>
+                    <td style="text-align:right;">
+                        <button class="trade-btn" onclick="openOrderForm('OPTION','${o.symbol}','CALL',${o.strike||0},${o.price||0},${lotSize})"
+                            style="background:var(--accent-green); color:#000; font-weight:700; margin-right:4px;">BUY</button>
+                        <button class="trade-btn put-btn" onclick="openOrderForm('OPTION','${o.symbol}','PUT',${o.strike||0},${o.price||0},${lotSize})"
+                            style="font-weight:700;">SELL</button>
+                    </td>
+                </tr>`;
+            }).join('');
         }
 
         // Startup App
@@ -2349,13 +2559,19 @@ def get_commodity_data():
     try:
         from data_fetcher import UpstoxDataFetcher
         import time
-        import math
         
         fetcher = UpstoxDataFetcher()
         all_inst = fetcher.get_all_instruments()
         mcx_inst = [x for x in all_inst if x.get('segment') == 'MCX_FO']
         
         current_time_ms = int(time.time() * 1000)
+
+        # MCX standard lot sizes
+        MCX_LOT_SIZES = {
+            'GOLD': 100, 'GOLDM': 10, 'SILVER': 30, 'SILVERM': 5,
+            'CRUDEOIL': 100, 'CRUDEOILM': 10, 'NATURALGAS': 1250, 'NATGASMINI': 250,
+            'ZINC': 5000, 'ZINCMINI': 1000, 'ALUMINIUM': 5000, 'ALUMINI': 1000
+        }
         
         # Categorized sub-tickers
         categories = {
@@ -2449,12 +2665,20 @@ def get_commodity_data():
 
         raw_quotes = run_async_in_new_loop(fetch_async)
 
+        def _get_quote(key):
+            """Look up a quote by instrument key, handling both | and : separators."""
+            return (raw_quotes.get(key)
+                    or raw_quotes.get(key.replace('|', ':'))
+                    or raw_quotes.get(key.replace(':', '|'))
+                    or {})
+
         # 4. Process Live Markets (Futures)
         live_markets = []
         for asset, inst in resolved_futures.items():
             fallback = commodity_fallbacks.get(asset, {"price": 100.0, "change": 0.0, "pct": 0.0})
-            quote = raw_quotes.get(inst['key']) or raw_quotes.get(inst['key'].replace("|", ":")) or {}
+            quote = _get_quote(inst['key'])
             
+            is_live = bool(quote.get('last_price'))
             price = quote.get('last_price') or fallback["price"]
             net_change = quote.get('net_change') or fallback["change"]
             
@@ -2466,9 +2690,12 @@ def get_commodity_data():
                 "symbol": inst['symbol'],
                 "asset": asset,
                 "key": inst['key'],
+                "exchange": inst.get('exchange', 'MCX'),
+                "lot_size": MCX_LOT_SIZES.get(asset, 1),
                 "price": round(price, 2),
                 "change": round(net_change, 2),
-                "change_percent": round(pct_change, 2)
+                "change_percent": round(pct_change, 2),
+                "is_live": is_live
             })
 
         # Helper to estimate option price using simple intrinsic + time value fallback
@@ -2501,8 +2728,9 @@ def get_commodity_data():
                 
                 inst_opts = resolved_options_map.get(asset) or []
                 for o in inst_opts:
-                    quote = raw_quotes.get(o['key']) or raw_quotes.get(o['key'].replace("|", ":")) or {}
+                    quote = _get_quote(o['key'])
                     
+                    is_live = bool(quote.get('last_price'))
                     price = quote.get('last_price')
                     if not price or price <= 0:
                         price = get_fallback_option_price(o.get('strike') or 0.0, o.get('type'), fut_price, asset)
@@ -2516,12 +2744,14 @@ def get_commodity_data():
                     options_list.append({
                         "symbol": o['symbol'],
                         "key": o['key'],
-                        "exchange": o['exchange'],
+                        "exchange": o.get('exchange', 'MCX'),
+                        "lot_size": MCX_LOT_SIZES.get(asset, 1),
                         "price": round(price, 2),
                         "change": round(net_change, 2),
                         "change_percent": round(pct_change, 2),
                         "type": o.get('type'),
-                        "strike": o.get('strike')
+                        "strike": o.get('strike'),
+                        "is_live": is_live
                     })
                     
                 options_list.sort(key=lambda x: x.get('strike', 0.0))

@@ -376,8 +376,7 @@ class _SliverAppBarContainerDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    // ignore: unrelated_type_equality_checks
-    return expandedHeight != oldDelegate.maxExtent || child != oldDelegate.minExtent;
+  bool shouldRebuild(covariant _SliverAppBarContainerDelegate oldDelegate) {
+    return expandedHeight != oldDelegate.expandedHeight || child != oldDelegate.child;
   }
 }

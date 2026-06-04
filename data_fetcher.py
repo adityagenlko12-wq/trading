@@ -602,45 +602,22 @@ class UpstoxDataFetcher:
             except Exception as e:
                 logger.error(f"Error reading instruments cache: {e}")
                 
-        # Download synchronously if no cache exists
-        url = "https://assets.upstox.com/market-quote/instruments/exchange/complete.json.gz"
-        req = urllib.request.Request(
-            url, 
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        )
-        try:
-            logger.info("Synchronous download of Upstox instruments (first-time setup)...")
-            response = urllib.request.urlopen(req, timeout=15)
-            compressed = io.BytesIO(response.read())
-            decompressed = gzip.GzipFile(fileobj=compressed)
-            data = json.load(decompressed)
-            
-            filtered = []
-            allowed_segments = {'NSE_EQ', 'BSE_EQ', 'NSE_FO', 'BSE_FO', 'NSE_INDEX', 'BSE_INDEX'}
-            for item in data:
-                segment = item.get('segment')
-                if segment in allowed_segments:
-                    symbol = item.get('trading_symbol') or item.get('name') or ''
-                    name = item.get('name') or ''
-                    key = item.get('instrument_key') or ''
-                    exchange = item.get('exchange') or ''
-                    if symbol and key:
-                        filtered.append({
-                            'symbol': symbol.strip().upper(),
-                            'name': name.strip(),
-                            'key': key,
-                            'exchange': exchange,
-                            'segment': segment
-                        })
-            os.makedirs(os.path.dirname(json_path), exist_ok=True)
-            with open(json_path, 'w') as f:
-                json.dump(filtered, f)
-            UpstoxDataFetcher._all_instruments_cache = filtered
-            return filtered
-        except Exception as e:
-            logger.error(f"Failed to fetch Upstox instruments: {e}")
-            
-        return []
+        # If cache file does not exist, start background download and return top stocks immediately
+        logger.info("First-time setup: starting background download of Upstox instruments database.")
+        threading.Thread(target=download_and_cache, daemon=True).start()
+        
+        # Return top 500 stocks as temporary fallback to prevent hanging requests
+        top_stocks = self.get_top_stocks()
+        UpstoxDataFetcher._all_instruments_cache = []
+        for s in top_stocks:
+            UpstoxDataFetcher._all_instruments_cache.append({
+                'symbol': s['symbol'],
+                'name': s['name'],
+                'key': s['key'],
+                'exchange': s.get('exchange', 'NSE'),
+                'segment': 'NSE_EQ'
+            })
+        return UpstoxDataFetcher._all_instruments_cache
 
     def get_top_stocks(self) -> List[Dict]:
         """Load top 500+ NSE stocks list from JSON seed file."""

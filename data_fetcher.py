@@ -694,7 +694,13 @@ class UpstoxDataFetcher:
             
             response = await self._make_request(url, params)
             if response and "data" in response:
-                all_quotes.update(response["data"])
+                for symbol_key, quote_data in response["data"].items():
+                    all_quotes[symbol_key] = quote_data
+                    token = quote_data.get("instrument_token")
+                    if token:
+                        all_quotes[token] = quote_data
+                        all_quotes[token.replace('|', ':')] = quote_data
+                        all_quotes[token.replace(':', '|')] = quote_data
                 
         return all_quotes
 

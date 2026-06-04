@@ -161,4 +161,13 @@ class TradeRepository {
       rethrow;
     }
   }
+
+  Future<Map<String, dynamic>> getCommodityData() async {
+    try {
+      final response = await apiClient.get('/api/commodity/data');
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

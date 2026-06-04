@@ -7,6 +7,7 @@ import '../../controllers/stock_detail_controller.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/routes/routes.dart';
 import '../../../data/models/market_data_model.dart';
+import 'commodity_sub_tab.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -361,7 +362,7 @@ class _HomeMainView extends StatelessWidget {
               const _StocksSubTab(),
               const _OptionsSubTab(),
               _buildPlaceholderView('Mutual Funds Investment Basket Mode Under Construction', isDark),
-              _buildPlaceholderView('Commodities Segment (Gold, Silver, Crude Oil) Mockups', isDark),
+              const CommoditySubTab(),
             ],
           ),
         ),

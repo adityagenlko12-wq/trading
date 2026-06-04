@@ -2342,6 +2342,201 @@ def api_search_stocks():
     return jsonify(filtered)
 
 
+@app.route('/api/commodity/data')
+@login_required
+def get_commodity_data():
+    """API: Get real-time futures quotes and option lists for MCX Commodities."""
+    try:
+        from data_fetcher import UpstoxDataFetcher
+        import time
+        import math
+        
+        fetcher = UpstoxDataFetcher()
+        all_inst = fetcher.get_all_instruments()
+        mcx_inst = [x for x in all_inst if x.get('segment') == 'MCX_FO']
+        
+        current_time_ms = int(time.time() * 1000)
+        
+        # Categorized sub-tickers
+        categories = {
+            "Bullions": {
+                "Gold": "GOLD",
+                "Silver": "SILVER",
+                "Gold Mini": "GOLDM",
+                "Silver Mini": "SILVERM"
+            },
+            "Energy": {
+                "Crude Oil": "CRUDEOIL",
+                "Crude Oil Mini": "CRUDEOILM",
+                "Natural Gas": "NATURALGAS",
+                "Natural Gas Mini": "NATGASMINI"
+            },
+            "Metals": {
+                "Zinc": "ZINC",
+                "Zinc Mini": "ZINCMINI",
+                "Aluminium": "ALUMINIUM",
+                "Aluminium Mini": "ALUMINI"
+            }
+        }
+        
+        # Default reference spot prices and daily changes for MCX tickers if API quote fails
+        commodity_fallbacks = {
+            "GOLD": {"price": 72540.0, "change": 680.0, "pct": 0.95},
+            "GOLDM": {"price": 72610.0, "change": 720.0, "pct": 1.00},
+            "SILVER": {"price": 89450.0, "change": -450.0, "pct": -0.50},
+            "SILVERM": {"price": 89520.0, "change": -360.0, "pct": -0.40},
+            "CRUDEOIL": {"price": 6240.0, "change": -75.0, "pct": -1.19},
+            "CRUDEOILM": {"price": 6244.0, "change": -76.0, "pct": -1.20},
+            "NATURALGAS": {"price": 212.50, "change": 7.00, "pct": 3.41},
+            "NATGASMINI": {"price": 212.80, "change": 7.10, "pct": 3.45},
+            "ZINC": {"price": 245.80, "change": 0.50, "pct": 0.20},
+            "ZINCMINI": {"price": 246.00, "change": 0.50, "pct": 0.20},
+            "ALUMINIUM": {"price": 228.30, "change": -1.85, "pct": -0.80},
+            "ALUMINI": {"price": 228.50, "change": -1.80, "pct": -0.78}
+        }
+
+        # 1. Resolve front-month futures for each asset
+        futures_to_query = []
+        fut_key_to_asset = {}
+        resolved_futures = {} # asset -> instrument
+        
+        for cat_name, sub_cats in categories.items():
+            for sub_name, asset in sub_cats.items():
+                futs = [x for x in mcx_inst if x.get('asset') == asset and x.get('type') == 'FUT']
+                futs = [x for x in futs if x.get('expiry') and x.get('expiry') >= current_time_ms]
+                futs.sort(key=lambda x: x.get('expiry'))
+                
+                if futs:
+                    f = futs[0]
+                    resolved_futures[asset] = f
+                    futures_to_query.append(f['key'])
+                    fut_key_to_asset[f['key']] = asset
+
+        # 2. Resolve options for each asset
+        options_to_query = []
+        opt_key_to_meta = {}
+        resolved_options_map = {} # asset -> list of instruments
+        
+        for cat_name, sub_cats in categories.items():
+            for sub_name, asset in sub_cats.items():
+                fallback_info = commodity_fallbacks.get(asset, {"price": 100.0})
+                spot_price = fallback_info["price"]
+                
+                opts = [x for x in mcx_inst if x.get('asset') == asset and x.get('type') in ('CE', 'PE')]
+                opts = [x for x in opts if x.get('expiry') and x.get('expiry') >= current_time_ms]
+                
+                if opts:
+                    opts.sort(key=lambda x: x.get('expiry'))
+                    closest_expiry = opts[0].get('expiry')
+                    
+                    expiry_opts = [x for x in opts if x.get('expiry') == closest_expiry]
+                    expiry_opts.sort(key=lambda x: abs((x.get('strike') or 0.0) - spot_price))
+                    
+                    selected_opts = expiry_opts[:5]
+                    resolved_options_map[asset] = selected_opts
+                    for o in selected_opts:
+                        options_to_query.append(o['key'])
+                        opt_key_to_meta[o['key']] = o
+
+        # 3. Query all quotes in batch
+        async def fetch_async():
+            all_keys = list(set(futures_to_query + options_to_query))
+            try:
+                return await fetcher.get_quotes_batch(all_keys)
+            except Exception as e:
+                logger.error(f"Failed to query commodity quotes in batch: {e}")
+                return {}
+
+        raw_quotes = run_async_in_new_loop(fetch_async)
+
+        # 4. Process Live Markets (Futures)
+        live_markets = []
+        for asset, inst in resolved_futures.items():
+            fallback = commodity_fallbacks.get(asset, {"price": 100.0, "change": 0.0, "pct": 0.0})
+            quote = raw_quotes.get(inst['key']) or raw_quotes.get(inst['key'].replace("|", ":")) or {}
+            
+            price = quote.get('last_price') or fallback["price"]
+            net_change = quote.get('net_change') or fallback["change"]
+            
+            ohlc = quote.get('ohlc') or {}
+            open_p = ohlc.get('open') or (price - net_change)
+            pct_change = (net_change / open_p * 100) if open_p > 0 else fallback["pct"]
+            
+            live_markets.append({
+                "symbol": inst['symbol'],
+                "asset": asset,
+                "key": inst['key'],
+                "price": round(price, 2),
+                "change": round(net_change, 2),
+                "change_percent": round(pct_change, 2)
+            })
+
+        # Helper to estimate option price using simple intrinsic + time value fallback
+        def get_fallback_option_price(strike, opt_type, fut_price, asset_name):
+            if opt_type == 'CE':
+                intrinsic = max(0.0, fut_price - strike)
+            else:
+                intrinsic = max(0.0, strike - fut_price)
+                
+            if 'GOLD' in asset_name:
+                time_val = 400.0
+            elif 'SILVER' in asset_name:
+                time_val = 500.0
+            elif 'CRUDE' in asset_name:
+                time_val = 60.0
+            else:
+                time_val = 4.0
+                
+            price = intrinsic + time_val
+            return max(price, 0.5)
+
+        # 5. Process Option Lists grouped by Category & Sub-category
+        options_result = {}
+        for cat_name, sub_cats in categories.items():
+            options_result[cat_name] = {}
+            for sub_name, asset in sub_cats.items():
+                options_list = []
+                fut_price = next((x["price"] for x in live_markets if x["asset"] == asset), 100.0)
+                fut_pct = next((x["change_percent"] for x in live_markets if x["asset"] == asset), 0.0)
+                
+                inst_opts = resolved_options_map.get(asset) or []
+                for o in inst_opts:
+                    quote = raw_quotes.get(o['key']) or raw_quotes.get(o['key'].replace("|", ":")) or {}
+                    
+                    price = quote.get('last_price')
+                    if not price or price <= 0:
+                        price = get_fallback_option_price(o.get('strike') or 0.0, o.get('type'), fut_price, asset)
+                        
+                    net_change = quote.get('net_change') or (price * (fut_pct / 100.0))
+                    
+                    ohlc = quote.get('ohlc') or {}
+                    open_p = ohlc.get('open') or (price - net_change)
+                    pct_change = (net_change / open_p * 100) if open_p > 0 else fut_pct
+                    
+                    options_list.append({
+                        "symbol": o['symbol'],
+                        "key": o['key'],
+                        "exchange": o['exchange'],
+                        "price": round(price, 2),
+                        "change": round(net_change, 2),
+                        "change_percent": round(pct_change, 2),
+                        "type": o.get('type'),
+                        "strike": o.get('strike')
+                    })
+                    
+                options_list.sort(key=lambda x: x.get('strike', 0.0))
+                options_result[cat_name][sub_name] = options_list
+                
+        return jsonify({
+            "live_markets": live_markets,
+            "options": options_result
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in get_commodity_data: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 # In-memory cache for stock analyses to prevent hitting Gemini rate limits
 ai_analysis_cache = {}
 

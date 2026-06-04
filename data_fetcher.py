@@ -561,7 +561,7 @@ class UpstoxDataFetcher:
                 data = json.load(decompressed)
                 
                 filtered = []
-                allowed_segments = {'NSE_EQ', 'BSE_EQ', 'NSE_FO', 'BSE_FO', 'NSE_INDEX', 'BSE_INDEX'}
+                allowed_segments = {'NSE_EQ', 'BSE_EQ', 'NSE_FO', 'BSE_FO', 'NSE_INDEX', 'BSE_INDEX', 'MCX_FO'}
                 
                 for item in data:
                     segment = item.get('segment')
@@ -580,7 +580,11 @@ class UpstoxDataFetcher:
                                 'name': name.strip(),
                                 'key': key,
                                 'exchange': exchange,
-                                'segment': segment
+                                'segment': segment,
+                                'type': item.get('instrument_type') or '',
+                                'expiry': item.get('expiry'),
+                                'asset': item.get('asset_symbol') or '',
+                                'strike': item.get('strike_price')
                             })
                             
                 os.makedirs(os.path.dirname(json_path), exist_ok=True)

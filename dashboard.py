@@ -2260,23 +2260,65 @@ def api_remove_watchlist():
 
 @app.route('/api/stocks/search')
 def api_search_stocks():
-    """API: Search or filter top 500+ NSE stocks by symbol or name."""
-    query = request.args.get('q', '').strip().upper()
+    """API: Search or filter all 66k+ listed Indian stock instruments by symbol or name."""
+    query = request.args.get('q', request.args.get('query', '')).strip().upper()
     
     from data_fetcher import UpstoxDataFetcher
     fetcher = UpstoxDataFetcher()
-    stocks = fetcher.get_top_stocks()
     
     if not query:
+        # Return top 30 trending stocks as default search suggestions
+        stocks = fetcher.get_top_stocks()
         return jsonify(stocks[:30])
         
+    all_instruments = fetcher.get_all_instruments()
     filtered = []
-    for s in stocks:
-        if query in s["symbol"] or query in s["name"].upper():
-            filtered.append(s)
-        if len(filtered) >= 20: # Limit search results
+    
+    # 1. Look for exact match first
+    for s in all_instruments:
+        if s["symbol"] == query:
+            filtered.append({
+                "symbol": s["symbol"],
+                "name": s["name"],
+                "price": 100.0,
+                "key": s["key"],
+                "exchange": s["exchange"]
+            })
             break
             
+    # 2. Look for prefix matches on symbol (prioritizing NSE equities)
+    for s in all_instruments:
+        if s["symbol"].startswith(query) and not any(x["symbol"] == s["symbol"] for x in filtered):
+            # Prioritize NSE_EQ segment
+            is_nse_eq = s.get("segment") == "NSE_EQ"
+            item = {
+                "symbol": s["symbol"],
+                "name": s["name"],
+                "price": 100.0,
+                "key": s["key"],
+                "exchange": s["exchange"]
+            }
+            if is_nse_eq:
+                filtered.insert(1 if len(filtered) > 0 else 0, item)
+            else:
+                filtered.append(item)
+        if len(filtered) >= 30:
+            break
+            
+    # 3. Look for name matches if results are short
+    if len(filtered) < 30:
+        for s in all_instruments:
+            if query in s["name"].upper() and not any(x["symbol"] == s["symbol"] for x in filtered):
+                filtered.append({
+                    "symbol": s["symbol"],
+                    "name": s["name"],
+                    "price": 100.0,
+                    "key": s["key"],
+                    "exchange": s["exchange"]
+                })
+            if len(filtered) >= 40:
+                break
+                
     return jsonify(filtered)
 
 

@@ -80,6 +80,23 @@ class VirtualTrader:
         db_mgr = get_performance_manager()
         return db_mgr.get_active_positions(user_email)
 
+    def get_open_trades(self) -> List:
+        """Returns open positions as objects for main loop logging compatibility."""
+        from performance_manager import get_performance_manager
+        positions = get_performance_manager().get_all_open_positions()
+        class TradeWrapper:
+            def __init__(self, d):
+                self.index = d.get('symbol', '')
+                self.symbol = d.get('symbol', '')
+                self.signal_type = d.get('signal_type', '')
+                self.strike = d.get('strike', 0)
+        return [TradeWrapper(p) for p in positions]
+
+    def close_position(self, trade_id: int, exit_premium: float) -> bool:
+        """Alias for close_trade."""
+        return self.close_trade(trade_id, exit_premium)
+
+
     def is_position_open(self, user_email: str, index: str, signal_type: str) -> bool:
         """Check if an open position already exists for this index and direction."""
         from performance_manager import get_performance_manager

@@ -826,7 +826,36 @@ def api_trade_symbol_details(symbol_id):
             prev_close = quote.get('close', 0.0) or 0.0
         else:
             # Fallback for indices if API fails
-            if symbol_id == 'NIFTY':
+            symbol_upper = symbol_id.upper()
+            is_option = any(kw in symbol_upper for kw in ["CALL", "PUT", "CE", "PE"]) or (" " in symbol_id and any(kw in symbol_upper for kw in ["JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC", "JAN", "FEB", "MAR", "APR", "MAY"]))
+            
+            if is_option:
+                price = 0.15
+                if "NIFTY" in symbol_upper:
+                    price = 85.40
+                elif "BANKNIFTY" in symbol_upper:
+                    price = 124.50
+                elif "FINNIFTY" in symbol_upper:
+                    price = 45.80
+                elif "SENSEX" in symbol_upper:
+                    price = 0.10
+                
+                # Retrieve active position price if one exists for user
+                try:
+                    positions = db_mgr.get_active_positions(user['email'])
+                    pos_item = next((p for p in positions if p['symbol'] == symbol_id), None)
+                    if pos_item:
+                        price = pos_item.get('current_premium') or pos_item['entry_price']
+                except Exception:
+                    pass
+                
+                company_name = symbol_id
+                exchange = "BSE" if "SENSEX" in symbol_upper else "NSE"
+                open_p = price * 1.2
+                high_p = price * 1.5
+                low_p = price * 0.5
+                prev_close = price * 1.3
+            elif symbol_id == 'NIFTY':
                 price = 23433.70; company_name = "NIFTY 50"
                 open_p = 23282.45; high_p = 23462.30; low_p = 23247.30; prev_close = 23405.60
             elif symbol_id == 'SENSEX':
@@ -841,12 +870,28 @@ def api_trade_symbol_details(symbol_id):
             elif symbol_id == 'MIDCPNIFTY':
                 price = 12150.80; company_name = "NIFTY Midcap Select"
                 open_p = 12100.0; high_p = 12200.0; low_p = 12050.0; prev_close = 12130.0
-        
-        # Determine exchange
-        if symbol_id == 'SENSEX':
-            exchange = "BSE"
-        else:
-            exchange = "NSE"
+            else:
+                # Resolve from complete instruments list to get correct company name and exchange
+                symbol_upper = symbol_id.upper()
+                from data_fetcher import UpstoxDataFetcher
+                fetcher = UpstoxDataFetcher()
+                all_inst = fetcher.get_all_instruments()
+                match = next((item for item in all_inst if item['symbol'] == symbol_upper), None)
+                if match:
+                    company_name = match['name']
+                    exchange = match['exchange']
+                else:
+                    company_name = f"{symbol_id} India Ltd"
+                    exchange = "NSE"
+                
+                # Mock a stable, realistic price using symbol hash
+                import hashlib
+                h = int(hashlib.md5(symbol_upper.encode()).hexdigest(), 16)
+                price = (h % 950) + 50.0 # Consistent price between 50 and 1000
+                open_p = price * 0.985
+                high_p = price * 1.015
+                low_p = price * 0.978
+                prev_close = price * 0.99
 
         # Estimate day change if not available
         if change == 0.0 and prev_close > 0:
@@ -1220,21 +1265,74 @@ def api_save_order(symbol_id):
             if price <= 0:
                 price = 100.0
                 
-        signal_type = "BUY" if order_side == '1' else "SELL"
+        symbol_upper = symbol_id.upper()
+        is_option = any(kw in symbol_upper for kw in ["CALL", "PUT", "CE", "PE"]) or (" " in symbol_id and any(kw in symbol_upper for kw in ["JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC", "JAN", "FEB", "MAR", "APR", "MAY"]))
         
         from virtual_trader import get_virtual_trader
         trader = get_virtual_trader()
         
-        success, msg = trader.place_user_order(
-            user_email=user['email'],
-            symbol=symbol_id,
-            type_str="STOCK",
-            signal_type=signal_type,
-            strike=0,
-            price=price,
-            quantity=quantity,
-            lot_size=1
-        )
+        if is_option:
+            type_str = "OPTION"
+            
+            # Determine lot size
+            lot_size = 1
+            if "SENSEX" in symbol_upper:
+                lot_size = 10
+            elif "BANKNIFTY" in symbol_upper:
+                lot_size = 30
+            elif "FINNIFTY" in symbol_upper:
+                lot_size = 40
+            elif "MIDCPNIFTY" in symbol_upper:
+                lot_size = 75
+            elif "NIFTY" in symbol_upper:
+                lot_size = 75
+                
+            # Parse strike price from symbol name
+            import re
+            strike = 0
+            strike_match = re.search(r'\b\d{5}\b|\b\d{4}\b', symbol_id)
+            if strike_match:
+                strike = int(strike_match.group(0))
+                
+            # If placing buy order
+            if order_side == '1':
+                signal_type = "CALL" if ("CALL" in symbol_upper or "CE" in symbol_upper) else "PUT"
+                success, msg = trader.place_user_order(
+                    user_email=user['email'],
+                    symbol=symbol_id,
+                    type_str="OPTION",
+                    signal_type=signal_type,
+                    strike=strike,
+                    price=price,
+                    quantity=quantity,
+                    lot_size=lot_size
+                )
+            else: # SELL / EXIT order
+                # Find matching active position to close it
+                from performance_manager import get_performance_manager
+                db_mgr = get_performance_manager()
+                positions = db_mgr.get_active_positions(user['email'])
+                pos = next((p for p in positions if p['symbol'] == symbol_id), None)
+                if pos:
+                    success = trader.close_position(pos['id'], price)
+                    msg = "Position closed successfully" if success else "Failed to close position"
+                else:
+                    success = False
+                    msg = "No open option position found to exit"
+        else:
+            type_str = "STOCK"
+            signal_type = "BUY" if order_side == '1' else "SELL"
+            success, msg = trader.place_user_order(
+                user_email=user['email'],
+                symbol=symbol_id,
+                type_str="STOCK",
+                signal_type=signal_type,
+                strike=0,
+                price=price,
+                quantity=quantity,
+                lot_size=1
+            )
+
         
         if success:
             return jsonify({

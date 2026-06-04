@@ -529,6 +529,119 @@ class UpstoxDataFetcher:
         
         return 0.0
 
+    _all_instruments_cache = None
+
+    def get_all_instruments(self) -> List[Dict]:
+        """Load and cache the complete list of 66k+ active trading instruments (Equities & F&O)."""
+        if UpstoxDataFetcher._all_instruments_cache is not None:
+            return UpstoxDataFetcher._all_instruments_cache
+            
+        import json
+        import os
+        import urllib.request
+        import gzip
+        import io
+        import threading
+        import time
+        
+        json_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "all_instruments.json")
+        
+        # Helper to download instruments in the background
+        def download_and_cache():
+            url = "https://assets.upstox.com/market-quote/instruments/exchange/complete.json.gz"
+            req = urllib.request.Request(
+                url, 
+                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+            )
+            try:
+                logger.info("Downloading complete instruments database from Upstox in background...")
+                response = urllib.request.urlopen(req, timeout=30)
+                compressed = io.BytesIO(response.read())
+                decompressed = gzip.GzipFile(fileobj=compressed)
+                data = json.load(decompressed)
+                
+                filtered = []
+                allowed_segments = {'NSE_EQ', 'BSE_EQ', 'NSE_FO', 'BSE_FO', 'NSE_INDEX', 'BSE_INDEX'}
+                
+                for item in data:
+                    segment = item.get('segment')
+                    if segment in allowed_segments:
+                        symbol = item.get('trading_symbol') or item.get('name') or ''
+                        name = item.get('name') or ''
+                        key = item.get('instrument_key') or ''
+                        exchange = item.get('exchange') or ''
+                        
+                        if symbol and key:
+                            filtered.append({
+                                'symbol': symbol.strip().upper(),
+                                'name': name.strip(),
+                                'key': key,
+                                'exchange': exchange,
+                                'segment': segment
+                            })
+                            
+                os.makedirs(os.path.dirname(json_path), exist_ok=True)
+                with open(json_path, 'w') as f:
+                    json.dump(filtered, f)
+                logger.info(f"Successfully cached {len(filtered)} instruments in background.")
+                UpstoxDataFetcher._all_instruments_cache = filtered
+            except Exception as e:
+                logger.error(f"Failed background download of Upstox instruments: {e}")
+                
+        # If cache file exists, load it
+        if os.path.exists(json_path):
+            try:
+                # Check if cache is older than 24 hours
+                file_age = time.time() - os.path.getmtime(json_path)
+                if file_age > 86400: # 24 hours
+                    threading.Thread(target=download_and_cache, daemon=True).start()
+                
+                with open(json_path, 'r') as f:
+                    UpstoxDataFetcher._all_instruments_cache = json.load(f)
+                return UpstoxDataFetcher._all_instruments_cache
+            except Exception as e:
+                logger.error(f"Error reading instruments cache: {e}")
+                
+        # Download synchronously if no cache exists
+        url = "https://assets.upstox.com/market-quote/instruments/exchange/complete.json.gz"
+        req = urllib.request.Request(
+            url, 
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        )
+        try:
+            logger.info("Synchronous download of Upstox instruments (first-time setup)...")
+            response = urllib.request.urlopen(req, timeout=15)
+            compressed = io.BytesIO(response.read())
+            decompressed = gzip.GzipFile(fileobj=compressed)
+            data = json.load(decompressed)
+            
+            filtered = []
+            allowed_segments = {'NSE_EQ', 'BSE_EQ', 'NSE_FO', 'BSE_FO', 'NSE_INDEX', 'BSE_INDEX'}
+            for item in data:
+                segment = item.get('segment')
+                if segment in allowed_segments:
+                    symbol = item.get('trading_symbol') or item.get('name') or ''
+                    name = item.get('name') or ''
+                    key = item.get('instrument_key') or ''
+                    exchange = item.get('exchange') or ''
+                    if symbol and key:
+                        filtered.append({
+                            'symbol': symbol.strip().upper(),
+                            'name': name.strip(),
+                            'key': key,
+                            'exchange': exchange,
+                            'segment': segment
+                        })
+            os.makedirs(os.path.dirname(json_path), exist_ok=True)
+            with open(json_path, 'w') as f:
+                json.dump(filtered, f)
+            UpstoxDataFetcher._all_instruments_cache = filtered
+            return filtered
+        except Exception as e:
+            logger.error(f"Failed to fetch Upstox instruments: {e}")
+            
+        return []
+
     def get_top_stocks(self) -> List[Dict]:
         """Load top 500+ NSE stocks list from JSON seed file."""
         try:
@@ -573,12 +686,35 @@ class UpstoxDataFetcher:
         key_to_stock = {s["key"]: s for s in stocks if s.get("key")}
         symbol_to_stock = {s["symbol"]: s for s in stocks}
         
+        # Load the complete database to map searched symbols to their true instrument keys
+        all_inst = self.get_all_instruments()
+        inst_by_symbol = {}
+        for item in all_inst:
+            sym_name = item['symbol']
+            # Prioritize NSE equities and indexes
+            if sym_name not in inst_by_symbol or item['segment'] in ('NSE_EQ', 'NSE_INDEX'):
+                inst_by_symbol[sym_name] = item
+
         keys_to_query = []
+        key_to_meta = {}
+        
         for sym in symbols:
-            if sym in symbol_to_stock:
-                keys_to_query.append(symbol_to_stock[sym]["key"])
+            sym_upper = sym.upper()
+            if sym_upper in inst_by_symbol:
+                key = inst_by_symbol[sym_upper]["key"]
+                keys_to_query.append(key)
+                key_to_meta[key] = inst_by_symbol[sym_upper]
+            elif sym in symbol_to_stock:
+                key = symbol_to_stock[sym]["key"]
+                keys_to_query.append(key)
+                key_to_meta[key] = {
+                    "symbol": sym,
+                    "name": symbol_to_stock[sym]["name"],
+                    "exchange": symbol_to_stock[sym].get("exchange", "NSE")
+                }
             elif (sym.startswith("NSE_EQ|") or sym.startswith("NSE_INDEX|") or 
-                  sym.startswith("BSE_EQ|") or sym.startswith("BSE_INDEX|")):
+                  sym.startswith("BSE_EQ|") or sym.startswith("BSE_INDEX|") or
+                  sym.startswith("NSE_FO|") or sym.startswith("BSE_FO|")):
                 keys_to_query.append(sym)
                 
         if not keys_to_query:
@@ -591,7 +727,11 @@ class UpstoxDataFetcher:
             if not quote_val:
                 continue
             norm_key = raw_key.replace(":", "|")
-            stock_info = key_to_stock.get(norm_key, {})
+            
+            meta = key_to_meta.get(norm_key) or key_to_stock.get(norm_key, {})
+            symbol_name = meta.get("symbol") or norm_key.split("|")[-1]
+            company_name = meta.get("name") or symbol_name
+            exchange_val = meta.get("exchange") or ("BSE" if "BSE" in norm_key else "NSE")
             
             ohlc = quote_val.get("ohlc") or {}
             open_p = ohlc.get("open") or 0.0
@@ -602,8 +742,8 @@ class UpstoxDataFetcher:
             volume = quote_val.get("volume") or 0
             
             results.append({
-                "symbol": stock_info.get("symbol", norm_key.split("|")[-1]),
-                "company_name": stock_info.get("name", ""),
+                "symbol": symbol_name,
+                "company_name": company_name,
                 "key": norm_key,
                 "ltp": last_price,
                 "day_change": net_change,
@@ -613,7 +753,8 @@ class UpstoxDataFetcher:
                 "low": ohlc.get("low") or 0.0,
                 "close": ohlc.get("close") or 0.0,
                 "volume": volume,
-                "market_cap": (volume * last_price)
+                "market_cap": (volume * last_price),
+                "exchange": exchange_val
             })
         return results
 

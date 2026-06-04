@@ -150,7 +150,6 @@ class MetaMaskAuthLoginController extends GetxController with WidgetsBindingObse
   void onClose() {
     printx("close all login metamask");
     try {
-      w3mService.disconnect();
       w3mService.dispose();
     } catch (e) {
       printx(e);

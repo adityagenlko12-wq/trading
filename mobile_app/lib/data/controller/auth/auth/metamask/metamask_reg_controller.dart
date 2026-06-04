@@ -150,7 +150,6 @@ class MetaMaskAuthRegController extends GetxController with WidgetsBindingObserv
   void onClose() {
     printx("close all reg metamask");
     try {
-      w3mService.disconnect();
       w3mService.dispose();
     } catch (e) {
       printx(e);

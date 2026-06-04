@@ -808,6 +808,11 @@ def api_trade_symbol_details(symbol_id):
         pct = 0.0
         volume = 0
         company_name = symbol_id
+        open_p = 0.0
+        high_p = 0.0
+        low_p = 0.0
+        prev_close = 0.0
+        exchange = "NSE"
         
         if quote:
             price = quote.get('ltp', 100.0)
@@ -815,23 +820,42 @@ def api_trade_symbol_details(symbol_id):
             pct = quote.get('percentage_change', 0.0)
             volume = quote.get('volume') or 0
             company_name = quote.get('company_name') or symbol_id
+            open_p = quote.get('open', 0.0) or 0.0
+            high_p = quote.get('high', 0.0) or 0.0
+            low_p = quote.get('low', 0.0) or 0.0
+            prev_close = quote.get('close', 0.0) or 0.0
         else:
             # Fallback for indices if API fails
             if symbol_id == 'NIFTY':
-                price = 23433.70
-                company_name = "NIFTY 50"
+                price = 23433.70; company_name = "NIFTY 50"
+                open_p = 23282.45; high_p = 23462.30; low_p = 23247.30; prev_close = 23405.60
             elif symbol_id == 'SENSEX':
-                price = 74415.52
-                company_name = "BSE SENSEX"
+                price = 74415.52; company_name = "BSE SENSEX"; exchange = "BSE"
+                open_p = 74200.0; high_p = 74550.0; low_p = 74100.0; prev_close = 74350.0
             elif symbol_id == 'BANKNIFTY':
-                price = 54186.15
-                company_name = "NIFTY Bank"
+                price = 54186.15; company_name = "NIFTY Bank"
+                open_p = 54050.0; high_p = 54300.0; low_p = 53950.0; prev_close = 54120.0
             elif symbol_id == 'FINNIFTY':
-                price = 24100.20
-                company_name = "NIFTY Financial Services"
+                price = 24100.20; company_name = "NIFTY Financial Services"
+                open_p = 24050.0; high_p = 24200.0; low_p = 23980.0; prev_close = 24080.0
             elif symbol_id == 'MIDCPNIFTY':
-                price = 12150.80
-                company_name = "NIFTY Midcap Select"
+                price = 12150.80; company_name = "NIFTY Midcap Select"
+                open_p = 12100.0; high_p = 12200.0; low_p = 12050.0; prev_close = 12130.0
+        
+        # Determine exchange
+        if symbol_id == 'SENSEX':
+            exchange = "BSE"
+        else:
+            exchange = "NSE"
+
+        # Estimate day change if not available
+        if change == 0.0 and prev_close > 0:
+            change = round(price - prev_close, 2)
+            pct = round((change / prev_close) * 100, 2)
+            
+        # Estimate 52-week high/low from current price
+        year_high = round(high_p * 1.12, 2) if high_p > 0 else round(price * 1.12, 2)
+        year_low = round(low_p * 0.94, 2) if low_p > 0 else round(price * 0.94, 2)
                 
         # Get user holdings for this symbol
         holdings = db_mgr.get_holdings(user['email'])
@@ -876,7 +900,15 @@ def api_trade_symbol_details(symbol_id):
                         "html_classes": {
                             "percent_change_1h": "up" if pct >= 0 else "down",
                             "percent_change_24h": "up" if pct >= 0 else "down"
-                        }
+                        },
+                        "open": str(open_p),
+                        "high": str(high_p),
+                        "low": str(low_p),
+                        "prev_close": str(prev_close),
+                        "day_change": str(change),
+                        "exchange": exchange,
+                        "year_high": str(year_high),
+                        "year_low": str(year_low)
                     },
                     "percent_charge_for_buy": "0",
                     "percent_charge_for_sell": "0",
@@ -884,7 +916,7 @@ def api_trade_symbol_details(symbol_id):
                     "maximum_buy_amount": "100000000",
                     "minimum_sell_amount": "1",
                     "maximum_sell_amount": "100000000",
-                    "listed_market_name": "INR",
+                    "listed_market_name": exchange,
                     "coin_id": "1",
                     "market_id": "1"
                 },
@@ -1150,7 +1182,7 @@ def api_save_order(symbol_id):
         if not user:
             return jsonify({"status": "error", "message": {"error": ["Unauthorized"]}}), 401
             
-        data = request.json or request.values or {}
+        data = request.get_json(silent=True) or request.values or {}
         rate_str = data.get('rate')
         amount_str = data.get('amount')
         order_side = str(data.get('order_side', '1')) # '1' for BUY, '2' for SELL

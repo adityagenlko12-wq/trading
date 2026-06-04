@@ -21,20 +21,22 @@ class _CommoditySubTabState extends State<CommoditySubTab> {
   
   // Segment filters matching Dhan UI
   bool _isMcxSelected = true;
-  String _selectedCategory = 'Bullions';
-  String _selectedSubCategory = 'Gold';
+  String _selectedCategory = 'Energy'; // Default to Energy as per screenshot
   
-  // Sub-categories map
-  final Map<String, List<String>> _subCategories = {
-    'Bullions': ['Gold', 'Silver', 'Gold Mini', 'Silver Mini'],
-    'Energy': ['Crude Oil', 'Crude Oil Mini', 'Natural Gas', 'Natural Gas Mini'],
-    'Metals': ['Zinc', 'Zinc Mini', 'Aluminium', 'Aluminium Mini']
-  };
+  // Carousel controller for Expiry Trading PageView
+  final PageController _pageController = PageController(initialPage: 0);
+  int _carouselIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _loadCommodityData();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCommodityData() async {
@@ -105,8 +107,12 @@ class _CommoditySubTabState extends State<CommoditySubTab> {
       color: AppColors.primary,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
+          // 0. Dhan Search Bar for Commodities
+          _buildSearchBar(isDark),
+          const SizedBox(height: 10),
+
           // 1. Live Markets Section (Horizontal futures cards)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -114,39 +120,43 @@ class _CommoditySubTabState extends State<CommoditySubTab> {
               children: [
                 Container(
                   width: 3,
-                  height: 16,
-                  color: AppColors.primary,
+                  height: 14,
+                  color: const Color(0xFF00B050), // Green dot indicator
                 ),
                 const SizedBox(width: 8),
                 const Text(
                   'Live Markets',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.bold,
+                    color: Colors.grey,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _buildLiveMarketsList(isDark),
+          const SizedBox(height: 16),
+
+          // 2. Expiry Trading Carousel Card
+          _buildExpiryTradingSection(isDark),
+          const SizedBox(height: 16),
           
-          const SizedBox(height: 24),
-          
-          // 2. Top Traded Options Header with MCX/NSE toggle
+          // 3. Commodity Futures Header with Segment selector (MCX/NSE)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Top Traded Options',
+                  'Commodity Futures',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 17,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                // Custom Switch Toggle
+                // Custom Switch Toggle for MCX vs NSE
                 Row(
                   children: [
                     Text(
@@ -161,7 +171,7 @@ class _CommoditySubTabState extends State<CommoditySubTab> {
                     ),
                     const SizedBox(width: 6),
                     SizedBox(
-                      height: 30,
+                      height: 28,
                       child: FittedBox(
                         fit: BoxFit.fill,
                         child: Switch(
@@ -194,142 +204,410 @@ class _CommoditySubTabState extends State<CommoditySubTab> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           
-          // 3. Category Selector pills (Energy, Metals, Bullions)
+          // 4. Category Selector tabs (Energy, Bullion, Metals)
           _buildCategorySelector(isDark),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           
-          // 4. Sub-category Selector pills (e.g. Gold, Silver...)
-          _buildSubCategorySelector(isDark),
-          const SizedBox(height: 16),
-          
-          // 5. Options Contract List
-          _buildOptionsList(isDark),
+          // 5. Commodity Futures Contract List
+          _buildFuturesList(isDark),
         ],
       ),
     );
   }
 
+  Widget _buildSearchBar(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: TextField(
+        readOnly: true,
+        onTap: () {
+          // Open details for first active asset
+          if (_liveMarkets.isNotEmpty) {
+            Get.toNamed(RouteHelper.stockDetail, arguments: _liveMarkets[0]['symbol']);
+          }
+        },
+        decoration: InputDecoration(
+          hintText: 'Search for Commodities to trade',
+          hintStyle: TextStyle(
+            color: isDark ? Colors.grey[500] : Colors.grey[500],
+            fontSize: 14,
+          ),
+          prefixIcon: const Icon(Icons.wb_sunny_outlined, color: Colors.orange), // Yellow sun logo prefix
+          suffixIcon: const Icon(Icons.search, color: Colors.grey),
+          filled: true,
+          fillColor: isDark ? const Color(0xFF1E222D) : const Color(0xFFF2F4F7),
+          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLiveMarketsList(bool isDark) {
-    if (_liveMarkets.isEmpty) {
-      return const SizedBox(
-        height: 80,
-        child: Center(child: Text('No futures contracts active.')),
-      );
-    }
-    
-    // Filter futures based on exchange selection (MCX vs NSE commodities - mock fallback)
-    final filteredFuts = _liveMarkets.where((x) {
-      final isMcx = x['exchange'] == 'MCX' || x['key'].toString().contains('MCX');
-      return _isMcxSelected ? isMcx : !isMcx;
+    // Collect Futures elements
+    final List<dynamic> futs = _liveMarkets.where((x) {
+      final String sym = (x['symbol'] ?? '').toString().toUpperCase();
+      return sym.contains('FUT');
     }).toList();
 
+    // Sort to keep Gold/Silver mini at front for top card matching ss
+    futs.sort((a, b) {
+      final symA = a['symbol'].toString();
+      if (symA.contains('GOLDM')) return -1;
+      if (symA.contains('GOLD')) return 0;
+      return 1;
+    });
+
+    if (futs.isEmpty) {
+      return const SizedBox(
+        height: 60,
+        child: Center(child: Text('No live futures active.')),
+      );
+    }
+
     return SizedBox(
-      height: 90,
+      height: 72,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 10),
-        itemCount: filteredFuts.isEmpty ? 2 : filteredFuts.length,
+        itemCount: futs.length,
         itemBuilder: (context, index) {
-          if (filteredFuts.isEmpty) {
-            // Mock index loader when no matching exchange items are found
-            final isGold = index == 0;
-            return _buildFutureCard(
-              symbol: isGold ? 'GOLD JUN FUT' : 'GOLDM JUN FUT',
-              price: isGold ? 155685.00 : 156001.00,
-              change: isGold ? 1350.0 : 1540.0,
-              pct: isGold ? 0.88 : 1.00,
-              isDark: isDark,
-              keyStr: isGold ? 'GOLD' : 'GOLDM'
-            );
-          }
-          final item = filteredFuts[index];
-          return _buildFutureCard(
-            symbol: item['symbol'] ?? '',
-            price: double.tryParse(item['price']?.toString() ?? '') ?? 0.0,
-            change: double.tryParse(item['change']?.toString() ?? '') ?? 0.0,
-            pct: double.tryParse(item['change_percent']?.toString() ?? '') ?? 0.0,
-            isDark: isDark,
-            keyStr: item['key'] ?? ''
+          final item = futs[index];
+          final String symbol = item['symbol'] ?? '';
+          final double price = double.tryParse(item['price']?.toString() ?? '') ?? 0.0;
+          final double change = double.tryParse(item['change']?.toString() ?? '') ?? 0.0;
+          final double pct = double.tryParse(item['change_percent']?.toString() ?? '') ?? 0.0;
+
+          final isPositive = change >= 0;
+          final trendColor = isPositive ? const Color(0xFF00B050) : const Color(0xFFE53935);
+          final cardBg = isDark ? const Color(0xFF1E222D) : Colors.white;
+          final borderColor = isDark ? Colors.grey[850]! : Colors.grey[200]!;
+
+          return GestureDetector(
+            onTap: () {
+              Get.toNamed(RouteHelper.stockDetail, arguments: symbol);
+            },
+            child: Container(
+              width: 190,
+              margin: const EdgeInsets.symmetric(horizontal: 5),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: borderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        isPositive ? Icons.trending_up : Icons.trending_down,
+                        color: trendColor,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          symbol,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.grey[300] : Colors.grey[800],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _formatPrice(price),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '(${isPositive ? '+' : ''}${pct.toStringAsFixed(2)}%)',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: trendColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           );
         },
       ),
     );
   }
 
-  Widget _buildFutureCard({
-    required String symbol,
-    required double price,
-    required double change,
-    required double pct,
-    required bool isDark,
-    required String keyStr
-  }) {
-    final isPositive = change >= 0;
-    final trendColor = isPositive ? const Color(0xFF00B050) : const Color(0xFFE53935);
-    final cardBg = isDark ? const Color(0xFF1E222D) : Colors.white;
-    final borderColor = isDark ? Colors.grey[800]! : Colors.grey[200]!;
+  Widget _buildExpiryTradingSection(bool isDark) {
+    // Find active energy/bullion futures contracts to display in page carousel
+    final List<dynamic> carouselFuts = _liveMarkets.where((x) {
+      final String sym = (x['symbol'] ?? '').toString().toUpperCase();
+      return sym.contains('CRUDEOIL') || sym.contains('GOLD') || sym.contains('NATURALGAS') || sym.contains('SILVER');
+    }).toList();
 
-    return GestureDetector(
-      onTap: () {
-        Get.toNamed(RouteHelper.stockDetail, arguments: symbol);
-      },
-      child: Container(
-        width: 175,
-        margin: const EdgeInsets.symmetric(horizontal: 5),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: borderColor),
-          boxShadow: [
-            BoxShadow(
-              color: isDark ? Colors.black26 : Colors.grey[100]!,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            )
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  isPositive ? Icons.trending_up : Icons.trending_down,
-                  color: trendColor,
-                  size: 16,
+    // Default mock list if backend response empty
+    if (carouselFuts.isEmpty) {
+      carouselFuts.add({
+        'symbol': 'CRUDEOIL JUN FUT',
+        'price': 8880.00,
+        'change': -360.00,
+        'change_percent': -3.90,
+        'expiry': DateTime.now().add(const Duration(days: 14)).millisecondsSinceEpoch
+      });
+    }
+
+    return Column(
+      children: [
+        // Expiry Trading Title header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          child: Row(
+            children: [
+              const Icon(Icons.wb_sunny_rounded, color: Colors.orange, size: 16),
+              const SizedBox(width: 6),
+              const Text(
+                'Expiry Trading',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
                 ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    symbol,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.grey[300] : Colors.grey[800],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              price.toStringAsFixed(2),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
               ),
-            ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Carousel Container
+        SizedBox(
+          height: 145,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: carouselFuts.length,
+            onPageChanged: (idx) {
+              setState(() {
+                _carouselIndex = idx;
+              });
+            },
+            itemBuilder: (context, index) {
+              final item = carouselFuts[index];
+              final String symbol = item['symbol'] ?? '';
+              final double price = double.tryParse(item['price']?.toString() ?? '') ?? 0.0;
+              final double change = double.tryParse(item['change']?.toString() ?? '') ?? 0.0;
+              final double pct = double.tryParse(item['change_percent']?.toString() ?? '') ?? 0.0;
+              
+              // Estimate expiry days remaining
+              final int expiryMs = item['expiry'] ?? 0;
+              final int nowMs = DateTime.now().millisecondsSinceEpoch;
+              final int daysLeft = expiryMs > nowMs ? ((expiryMs - nowMs) / (1000 * 60 * 60 * 24)).ceil() : 14;
+
+              final isPositive = change >= 0;
+              final trendColor = isPositive ? const Color(0xFF00B050) : const Color(0xFFE53935);
+              final cardBg = isDark ? const Color(0xFF1E222D) : const Color(0xFFFFFDF9);
+              final borderColor = isDark ? Colors.grey[850]! : const Color(0xFFFEEEC8);
+
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderColor, width: 1.2),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Top Row: Logo + Symbol Name + Expiry Badge
+                    Row(
+                      children: [
+                        // Barrel Logo representation
+                        Container(
+                          width: 28,
+                          height: 28,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.amber[100],
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.opacity, color: Colors.orange, size: 16),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          symbol,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          'Expiry in $daysLeft days',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    // Middle Row: Price & net change details
+                    Row(
+                      children: [
+                        Text(
+                          _formatPrice(price),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${isPositive ? '+' : ''}${change.toStringAsFixed(2)} (${pct.toStringAsFixed(2)}%)',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.bold,
+                            color: trendColor,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          isPositive ? Icons.trending_up : Icons.trending_down,
+                          color: trendColor,
+                          size: 13,
+                        ),
+                      ],
+                    ),
+                    
+                    // Action Buttons Row
+                    Row(
+                      children: [
+                        _buildActionChip(
+                          label: 'Option Chain',
+                          icon: Icons.grid_view_rounded,
+                          color: isDark ? const Color(0xFF2C3240) : Colors.white,
+                          borderColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                          onTap: () {
+                            // Deep link pre-selecting tab 3 (Option Chain)
+                            Get.toNamed(RouteHelper.stockDetail, arguments: {
+                              'symbol': symbol,
+                              'initialTab': 3
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        _buildActionChip(
+                          label: 'Flash Trade',
+                          icon: Icons.flash_on_rounded,
+                          color: isDark ? const Color(0xFF2C3240) : Colors.white,
+                          borderColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                          onTap: () {
+                            // Deep link pre-selecting tab 2 (Flash Trade)
+                            Get.toNamed(RouteHelper.stockDetail, arguments: {
+                              'symbol': symbol,
+                              'initialTab': 2
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        _buildActionChip(
+                          label: 'Scalper',
+                          icon: Icons.show_chart_rounded,
+                          color: isDark ? const Color(0xFF2C3240) : Colors.white,
+                          borderColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                          onTap: () {
+                            Get.toNamed(RouteHelper.stockDetail, arguments: {
+                              'symbol': symbol,
+                              'initialTab': 2
+                            });
+                          },
+                        ),
+                        const Spacer(),
+                        // Round play button icon
+                        Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            color: Colors.amber[50],
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.amber[200]!),
+                          ),
+                          child: const Icon(Icons.play_arrow_rounded, color: Colors.amber, size: 16),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 6),
+
+        // Carousel dots indicators matching ss
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(carouselFuts.length, (dotIndex) {
+            final isCurrent = dotIndex == _carouselIndex;
+            return Container(
+              width: isCurrent ? 8 : 6,
+              height: isCurrent ? 8 : 6,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              decoration: BoxDecoration(
+                color: isCurrent ? const Color(0xFF00B050) : Colors.grey[300],
+                shape: BoxShape.circle,
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionChip({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required Color borderColor,
+    required VoidCallback onTap
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 12.5, color: Colors.grey),
+            const SizedBox(width: 4),
             Text(
-              '${isPositive ? '+' : ''}${change.toStringAsFixed(2)} (${pct.toStringAsFixed(2)}%)',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: trendColor,
+              label,
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
@@ -339,7 +617,7 @@ class _CommoditySubTabState extends State<CommoditySubTab> {
   }
 
   Widget _buildCategorySelector(bool isDark) {
-    final list = ['Energy', 'Metals', 'Bullions'];
+    final list = ['Energy', 'Bullion', 'Metals'];
     return SizedBox(
       height: 38,
       child: ListView.builder(
@@ -354,17 +632,16 @@ class _CommoditySubTabState extends State<CommoditySubTab> {
             onTap: () {
               setState(() {
                 _selectedCategory = cat;
-                _selectedSubCategory = _subCategories[cat]![0];
               });
             },
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 22),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: isActive 
                     ? (isDark ? const Color(0xFF1B2E24) : const Color(0xFFE8F5E9))
-                    : (isDark ? const Color(0xFF1E222D) : Colors.grey[100]),
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: isActive ? AppColors.primary : Colors.transparent,
@@ -378,7 +655,7 @@ class _CommoditySubTabState extends State<CommoditySubTab> {
                   fontSize: 14,
                   color: isActive 
                       ? AppColors.primary 
-                      : (isDark ? Colors.grey[300] : Colors.grey[700]),
+                      : (isDark ? Colors.grey[400] : Colors.grey[600]),
                 ),
               ),
             ),
@@ -388,77 +665,40 @@ class _CommoditySubTabState extends State<CommoditySubTab> {
     );
   }
 
-  Widget _buildSubCategorySelector(bool isDark) {
-    final subCats = _subCategories[_selectedCategory] ?? [];
-    return Container(
-      height: 32,
-      alignment: Alignment.centerLeft,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        itemCount: subCats.length,
-        itemBuilder: (context, index) {
-          final sub = subCats[index];
-          final isActive = _selectedSubCategory == sub;
-          
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedSubCategory = sub;
-              });
-            },
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: isActive 
-                    ? AppColors.primary 
-                    : (isDark ? Colors.grey[850] : Colors.white),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: isActive ? AppColors.primary : (isDark ? Colors.grey[800]! : Colors.grey[300]!),
-                ),
-              ),
-              child: Text(
-                sub,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                  color: isActive ? Colors.white : (isDark ? Colors.grey[300] : Colors.grey[700]),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
+  Widget _buildFuturesList(bool isDark) {
+    // 1. Group active futures based on selected category (Energy vs Bullions vs Metals)
+    final filteredFuts = _liveMarkets.where((x) {
+      final String key = (x['key'] ?? '').toString().toUpperCase();
+      final String sym = (x['symbol'] ?? '').toString().toUpperCase();
+      final String asset = (x['asset'] ?? '').toString().toUpperCase();
+      
+      final isMcx = x['exchange'] == 'MCX' || key.contains('MCX');
+      if (_isMcxSelected && !isMcx) return false;
+      if (!_isMcxSelected && isMcx) return false;
 
-  Widget _buildOptionsList(bool isDark) {
-    final catData = _optionsData[_selectedCategory] ?? {};
-    final List<dynamic> options = catData[_selectedSubCategory] ?? [];
-    
-    if (options.isEmpty) {
+      // Group futures matching category
+      if (_selectedCategory == 'Energy') {
+        return asset.contains('CRUDE') || asset.contains('NATURAL') || asset.contains('NATGAS');
+      } else if (_selectedCategory == 'Bullion') {
+        return asset.contains('GOLD') || asset.contains('SILVER');
+      } else { // Metals
+        return asset.contains('ZINC') || asset.contains('ALUMINIUM') || asset.contains('ALUMINI');
+      }
+    }).toList();
+
+    if (filteredFuts.isEmpty) {
       return Container(
-        height: 180,
+        height: 150,
         alignment: Alignment.center,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.layers_clear, size: 40, color: Colors.grey[500]),
-            const SizedBox(height: 8),
-            Text(
-              'No options available for $_selectedSubCategory currently.',
-              style: TextStyle(color: Colors.grey[500]),
-            ),
-          ],
+        child: Text(
+          'No $_selectedCategory contracts found.',
+          style: TextStyle(color: Colors.grey[500]),
         ),
       );
     }
-    
+
     return Column(
-      children: options.map((item) {
+      children: filteredFuts.map((item) {
         final symbol = item['symbol'] ?? '';
         final exch = item['exchange'] ?? 'MCX';
         final price = double.tryParse(item['price']?.toString() ?? '') ?? 0.0;
@@ -468,6 +708,12 @@ class _CommoditySubTabState extends State<CommoditySubTab> {
         final isPositive = change >= 0;
         final trendColor = isPositive ? const Color(0xFF00B050) : const Color(0xFFE53935);
         final dividerColor = isDark ? Colors.grey[850]! : Colors.grey[100]!;
+
+        // Estimate expiry date display (e.g. "18 Jun")
+        final int expiryMs = item['expiry'] ?? 0;
+        final expiryText = expiryMs > 0 
+            ? _formatExpiryDate(expiryMs)
+            : '18 Jun';
 
         return GestureDetector(
           onTap: () {
@@ -481,7 +727,7 @@ class _CommoditySubTabState extends State<CommoditySubTab> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Symbol Info
+                // Left Column: Symbol Details (Name & Exch + Expiry info)
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -489,30 +735,53 @@ class _CommoditySubTabState extends State<CommoditySubTab> {
                       Text(
                         symbol,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 15.5,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        exch,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            exch,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: isDark ? Colors.grey[400] : Colors.grey[500],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 3.5,
+                            height: 3.5,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[400],
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            expiryText,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: isDark ? Colors.grey[400] : Colors.grey[500],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                // Price Info
+                
+                // Right Column: Live Price & Net Change
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      price.toStringAsFixed(2),
+                      _formatPrice(price),
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 15.5,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -522,16 +791,16 @@ class _CommoditySubTabState extends State<CommoditySubTab> {
                         Text(
                           '${isPositive ? '+' : ''}${change.toStringAsFixed(2)} (${pct.toStringAsFixed(2)}%)',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
                             color: trendColor,
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 3),
                         Icon(
                           isPositive ? Icons.trending_up : Icons.trending_down,
                           color: trendColor,
-                          size: 12,
+                          size: 11,
                         ),
                       ],
                     ),
@@ -543,5 +812,26 @@ class _CommoditySubTabState extends State<CommoditySubTab> {
         );
       }).toList(),
     );
+  }
+
+  // Helper formatting functions
+  String _formatPrice(double price) {
+    if (price >= 1000) {
+      return price.toStringAsFixed(0).replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]},',
+      );
+    }
+    return price.toStringAsFixed(2);
+  }
+
+  String _formatExpiryDate(int ms) {
+    try {
+      final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+      final List<String> months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return '${dt.day} ${months[dt.month - 1]}';
+    } catch (_) {
+      return '18 Jun';
+    }
   }
 }

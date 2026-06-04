@@ -21,7 +21,12 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   void initState() {
     super.initState();
     // Symbol is passed either in arguments or default to RELIANCE
-    _symbol = Get.arguments as String? ?? 'RELIANCE';
+    final args = Get.arguments;
+    if (args is Map) {
+      _symbol = args['symbol']?.toString() ?? 'RELIANCE';
+    } else {
+      _symbol = args as String? ?? 'RELIANCE';
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Get.find<StockDetailController>().initialize(_symbol);
     });
@@ -45,7 +50,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
   bool _isIndex(String symbol) {
     final upper = symbol.toUpperCase().replaceAll(' ', '').replaceAll('_', '').replaceAll('-', '');
-    return upper == 'SENSEX' ||
+    if (upper == 'SENSEX' ||
         upper == 'BSESENSEX' ||
         upper == 'NIFTY' ||
         upper == 'NIFTY50' ||
@@ -56,7 +61,21 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         upper == 'BSEBANKEX' ||
         upper == 'BANKEX' ||
         upper == 'MIDCPNIFTY' ||
-        upper == 'NIFTYMIDSELECT';
+        upper == 'NIFTYMIDSELECT') {
+      return true;
+    }
+    // Commodities segment support
+    if (upper.contains('CRUDEOIL') ||
+        upper.contains('GOLD') ||
+        upper.contains('SILVER') ||
+        upper.contains('NATURALGAS') ||
+        upper.contains('NATGAS') ||
+        upper.contains('ZINC') ||
+        upper.contains('ALUMINIUM') ||
+        upper.contains('ALUMINI')) {
+      return true;
+    }
+    return false;
   }
 
   @override
@@ -382,14 +401,25 @@ class _IndexDetailViewState extends State<_IndexDetailView> with SingleTickerPro
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    int initialIdx = 0;
+    final args = Get.arguments;
+    if (args is Map && args['initialTab'] != null) {
+      initialIdx = int.tryParse(args['initialTab'].toString()) ?? 0;
+    } else if (args is String && (args.contains('CE') || args.contains('PE') || args.contains('CALL') || args.contains('PUT'))) {
+      initialIdx = 3; // Pre-select Option Chain
+    } else if (args is Map && args['symbol'] != null && (args['symbol'].toString().contains('CE') || args['symbol'].toString().contains('PE'))) {
+      initialIdx = 3;
+    }
+    
+    _tabController = TabController(length: 5, vsync: this, initialIndex: initialIdx);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {});
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _stockDetailController.initialize(widget.symbol);
+      final sym = args is Map ? (args['symbol'] ?? widget.symbol) : widget.symbol;
+      _stockDetailController.initialize(sym);
     });
   }
 
@@ -442,7 +472,108 @@ class _IndexDetailViewState extends State<_IndexDetailView> with SingleTickerPro
         'strikeInterval': 50,
         'defaultSpot': 12150.80,
       };
-    } else { // NIFTY / NIFTY50
+    } else {
+      // Check if it matches any commodity symbol prefix
+      final String symUpper = widget.symbol.toUpperCase();
+      if (symUpper.contains('GOLDM')) {
+        return {
+          'name': 'Gold Mini',
+          'exchange': 'MCX',
+          'lotSize': 10,
+          'strikeInterval': 100,
+          'defaultSpot': 72610.0,
+        };
+      } else if (symUpper.contains('GOLD')) {
+        return {
+          'name': 'Gold',
+          'exchange': 'MCX',
+          'lotSize': 100,
+          'strikeInterval': 100,
+          'defaultSpot': 72540.0,
+        };
+      } else if (symUpper.contains('SILVERM')) {
+        return {
+          'name': 'Silver Mini',
+          'exchange': 'MCX',
+          'lotSize': 5,
+          'strikeInterval': 250,
+          'defaultSpot': 89520.0,
+        };
+      } else if (symUpper.contains('SILVER')) {
+        return {
+          'name': 'Silver',
+          'exchange': 'MCX',
+          'lotSize': 30,
+          'strikeInterval': 250,
+          'defaultSpot': 89450.0,
+        };
+      } else if (symUpper.contains('CRUDEOILM')) {
+        return {
+          'name': 'Crude Oil Mini',
+          'exchange': 'MCX',
+          'lotSize': 10,
+          'strikeInterval': 50,
+          'defaultSpot': 6240.0,
+        };
+      } else if (symUpper.contains('CRUDEOIL')) {
+        return {
+          'name': 'Crude Oil',
+          'exchange': 'MCX',
+          'lotSize': 100,
+          'strikeInterval': 50,
+          'defaultSpot': 6240.0,
+        };
+      } else if (symUpper.contains('NATGASMINI') || symUpper.contains('NATURALGASM')) {
+        return {
+          'name': 'Natural Gas Mini',
+          'exchange': 'MCX',
+          'lotSize': 250,
+          'strikeInterval': 5,
+          'defaultSpot': 212.50,
+        };
+      } else if (symUpper.contains('NATURALGAS') || symUpper.contains('NATGAS')) {
+        return {
+          'name': 'Natural Gas',
+          'exchange': 'MCX',
+          'lotSize': 1250,
+          'strikeInterval': 5,
+          'defaultSpot': 212.50,
+        };
+      } else if (symUpper.contains('ZINCMINI')) {
+        return {
+          'name': 'Zinc Mini',
+          'exchange': 'MCX',
+          'lotSize': 1000,
+          'strikeInterval': 2,
+          'defaultSpot': 245.80,
+        };
+      } else if (symUpper.contains('ZINC')) {
+        return {
+          'name': 'Zinc',
+          'exchange': 'MCX',
+          'lotSize': 5000,
+          'strikeInterval': 2,
+          'defaultSpot': 245.80,
+        };
+      } else if (symUpper.contains('ALUMINI') && !symUpper.contains('ALUMINIUM')) {
+        return {
+          'name': 'Aluminium Mini',
+          'exchange': 'MCX',
+          'lotSize': 1000,
+          'strikeInterval': 2,
+          'defaultSpot': 228.30,
+        };
+      } else if (symUpper.contains('ALUMINIUM')) {
+        return {
+          'name': 'Aluminium',
+          'exchange': 'MCX',
+          'lotSize': 5000,
+          'strikeInterval': 2,
+          'defaultSpot': 228.30,
+        };
+      }
+      
+      // Default fallback
       return {
         'name': 'Nifty 50',
         'exchange': 'NSE',
@@ -1604,226 +1735,281 @@ class _IndexDetailViewState extends State<_IndexDetailView> with SingleTickerPro
     );
   }
 
-  // ==================== TAB 4: OPTION CHAIN VIEW ====================
   Widget _buildOptionChainTab(bool isDark, double spotPrice, Map<String, dynamic> specs) {
-    final int interval = specs['strikeInterval'];
-    final List<Map<String, dynamic>> chain = _generateOptionChain(spotPrice, interval);
+    final controller = Get.find<StockDetailController>();
+    return Obx(() {
+      if (controller.isLoadingOptionChain.value && controller.optionChainData.value == null) {
+        return const Expanded(child: Center(child: CircularProgressIndicator(color: AppColors.primary)));
+      }
 
-    final List<Map<String, dynamic>> filteredChain = [];
-    if (_activeFilter == 'Near ATM') {
-      final double atm = (spotPrice / interval).roundToDouble() * interval;
-      filteredChain.addAll(chain.where((x) => (x['strike'] - atm).abs() <= interval * 2));
-    } else {
-      filteredChain.addAll(chain);
-    }
+      // Check if we have real option chain from backend
+      final data = controller.optionChainData.value;
+      final int interval = specs['strikeInterval'];
+      final List<Map<String, dynamic>> chain = [];
+      double activeSpot = spotPrice;
+      List<String> activeExpiries = List<String>.from(_expiries);
 
-    final Color callsItmColor = isDark ? const Color(0xFF2C2210) : const Color(0xFFFFFDF0);
-    final Color putsItmColor = isDark ? const Color(0xFF201832) : const Color(0xFFF3E8FF);
+      if (data != null) {
+        activeSpot = double.tryParse(data['spot_price']?.toString() ?? '') ?? spotPrice;
+        final List<dynamic> expList = data['expiries'] ?? [];
+        if (expList.isNotEmpty) {
+          activeExpiries = expList.map((e) => e.toString()).toList();
+        }
+        
+        final List<dynamic> backendStrikes = data['strikes'] ?? [];
+        for (var s in backendStrikes) {
+          chain.add({
+            'strike': s['strike_price'],
+            'callLtp': double.tryParse(s['call_ltp']?.toString() ?? '') ?? 0.0,
+            'callLtpChg': double.tryParse(s['call_net_change']?.toString() ?? '') ?? 0.0,
+            'callOi': s['call_oi']?.toString() ?? '0',
+            'callOiChg': int.tryParse(s['call_oi_chg']?.toString() ?? '') ?? 0,
+            'putLtp': double.tryParse(s['put_ltp']?.toString() ?? '') ?? 0.0,
+            'putLtpChg': double.tryParse(s['put_net_change']?.toString() ?? '') ?? 0.0,
+            'putOi': s['put_oi']?.toString() ?? '0',
+            'putOiChg': int.tryParse(s['put_oi_chg']?.toString() ?? '') ?? 0,
+            'pcr': double.tryParse(s['pcr']?.toString() ?? '') ?? 1.0,
+            'call_key': s['call_key'] ?? '',
+            'put_key': s['put_key'] ?? '',
+            'call_symbol': s['call_symbol'] ?? '',
+            'put_symbol': s['put_symbol'] ?? '',
+          });
+        }
+      } else {
+        chain.addAll(_generateOptionChain(spotPrice, interval));
+      }
 
-    return Column(
-      children: [
-        // Expiry Date Selection Horizontal Chips Row
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                // Checked/un-checked square box at the start
-                Container(
-                  width: 24,
-                  height: 24,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[300]!, width: 1),
-                  ),
-                ),
-                ..._expiries.map((exp) {
-                  final isSel = _selectedExpiry == exp;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedExpiry = exp),
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isSel ? (isDark ? const Color(0xFF2C2210) : const Color(0xFFFFFDF0)) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isSel ? const Color(0xFFFFB300) : (isDark ? Colors.grey[800]! : Colors.grey[300]!),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        exp,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: isSel ? const Color(0xFFFF9800) : (isDark ? Colors.grey[400] : Colors.grey[600]),
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
-        ),
+      final List<Map<String, dynamic>> filteredChain = [];
+      if (_activeFilter == 'Near ATM') {
+        final double atm = (activeSpot / interval).roundToDouble() * interval;
+        filteredChain.addAll(chain.where((x) => (x['strike'] - atm).abs() <= interval * 2));
+      } else {
+        filteredChain.addAll(chain);
+      }
 
-        // Option Chain Card
-        Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                Container(
-                  margin: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight, width: 0.5),
-                  ),
-                  child: Column(
-                    children: [
-                      // Option Chain Header with left/right Calls/Puts arrow tags
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.play_arrow_rounded, color: Colors.orange[400], size: 16),
-                                const SizedBox(width: 4),
-                                const Text(
-                                  'Calls',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFFF9800)),
-                                ),
-                              ],
-                            ),
-                            const Text(
-                              'Option Chain',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                            Row(
-                              children: [
-                                const Text(
-                                  'Puts',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF9F5FFE)),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(Icons.play_arrow_rounded, color: Colors.purple[400], size: 16),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      Divider(height: 1, color: isDark ? Colors.grey[850] : Colors.grey[200]),
+      // If activeExpiries doesn't contain current selection, select the first one
+      if (activeExpiries.isNotEmpty && !activeExpiries.contains(_selectedExpiry)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _selectedExpiry = activeExpiries[0];
+            });
+            controller.fetchOptionChain(widget.symbol, expiry: _selectedExpiry);
+          }
+        });
+      }
 
-                      // Column Headers Row
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        color: isDark ? Colors.grey[900] : const Color(0xFFF9FAFB),
-                        child: const Row(
-                          children: [
-                            Expanded(flex: 3, child: Column(children: [Text('OI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)), Text('change', style: TextStyle(fontSize: 9.5, color: Colors.grey))])),
-                            Expanded(flex: 3, child: Column(children: [Text('LTP', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)), Text('change', style: TextStyle(fontSize: 9.5, color: Colors.grey))])),
-                            Expanded(flex: 3, child: Column(children: [Text('Strike', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)), Text('PCR', style: TextStyle(fontSize: 9.5, color: Colors.grey))])),
-                            Expanded(flex: 3, child: Column(children: [Text('LTP', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)), Text('change', style: TextStyle(fontSize: 9.5, color: Colors.grey))])),
-                            Expanded(flex: 3, child: Column(children: [Text('OI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)), Text('change', style: TextStyle(fontSize: 9.5, color: Colors.grey))])),
-                          ],
-                        ),
-                      ),
-                      Divider(height: 1, color: isDark ? Colors.grey[850] : Colors.grey[200]),
+      final Color callsItmColor = isDark ? const Color(0xFF2C2210) : const Color(0xFFFFFDF0);
+      final Color putsItmColor = isDark ? const Color(0xFF201832) : const Color(0xFFF3E8FF);
 
-                      // Double-sided Option List
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: filteredChain.length,
-                        itemBuilder: (context, i) {
-                          final item = filteredChain[i];
-                          final double strikePrice = item['strike'].toDouble();
-
-                          final bool showSpotBefore = (i > 0 && spotPrice > filteredChain[i-1]['strike'] && spotPrice <= strikePrice);
-                          final bool showSpotAtStart = (i == 0 && spotPrice <= strikePrice);
-
-                          return Column(
-                            children: [
-                              if (showSpotAtStart || showSpotBefore) _buildAtmSpotDivider(isDark, spotPrice),
-                              _buildOptionChainRow(item, spotPrice, callsItmColor, putsItmColor, specs['lotSize'], isDark),
-                            ],
-                          );
-                        },
-                      ),
-                      if (filteredChain.isNotEmpty && spotPrice > filteredChain.last['strike'])
-                        _buildAtmSpotDivider(isDark, spotPrice),
-                    ],
-                  ),
-                ),
-
-                // Show All button row
-                Padding(
-                  padding: const EdgeInsets.only(right: 12, top: 4, bottom: 12),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[300]!, width: 1),
-                      ),
-                      child: Text(
-                        'Show All',
-                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: isDark ? Colors.grey[400] : Colors.grey[600]),
-                      ),
+      return Column(
+        children: [
+          // Expiry Date Selection Horizontal Chips Row
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  // Checked/un-checked square box at the start
+                  Container(
+                    width: 24,
+                    height: 24,
+                    margin: const EdgeInsets.only(right: 12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[300]!, width: 1),
                     ),
                   ),
-                ),
-
-                // Bottom Filter Pills Row
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: ['O = H', 'O = L', 'High OI', 'High Vol', 'High IV'].map((flt) {
-                        final isSel = _activeFilter == flt;
-                        return GestureDetector(
-                          onTap: () => setState(() => _activeFilter = flt),
-                          child: Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: isSel ? AppColors.primary.withOpacity(0.1) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isSel ? AppColors.primary : (isDark ? Colors.grey[800]! : Colors.grey[300]!),
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              flt,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: isSel ? AppColors.primary : (isDark ? Colors.grey[400] : Colors.grey[600]),
-                              ),
-                            ),
+                  ...activeExpiries.map((exp) {
+                    final isSel = _selectedExpiry == exp;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _selectedExpiry = exp);
+                        controller.fetchOptionChain(widget.symbol, expiry: exp);
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSel ? (isDark ? const Color(0xFF2C2210) : const Color(0xFFFFFDF0)) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isSel ? const Color(0xFFFFB300) : (isDark ? Colors.grey[800]! : Colors.grey[300]!),
+                            width: 1,
                           ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
+                        ),
+                        child: Text(
+                          exp,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: isSel ? const Color(0xFFFF9800) : (isDark ? Colors.grey[400] : Colors.grey[600]),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
-    );
+
+          // Option Chain Card
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight, width: 0.5),
+                    ),
+                    child: Column(
+                      children: [
+                        // Option Chain Header with left/right Calls/Puts arrow tags
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.play_arrow_rounded, color: Colors.orange[400], size: 16),
+                                  const SizedBox(width: 4),
+                                  const Text(
+                                    'Calls',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFFF9800)),
+                                  ),
+                                ],
+                              ),
+                              const Text(
+                                'Option Chain',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                              Row(
+                                children: [
+                                  const Text(
+                                    'Puts',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF9F5FFE)),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.play_arrow_rounded, color: Colors.purple[400], size: 16),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Divider(height: 1, color: isDark ? Colors.grey[850] : Colors.grey[200]),
+
+                        // Column Headers Row
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          color: isDark ? Colors.grey[900] : const Color(0xFFF9FAFB),
+                          child: const Row(
+                            children: [
+                              Expanded(flex: 3, child: Column(children: [Text('OI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)), Text('change', style: TextStyle(fontSize: 9.5, color: Colors.grey))])),
+                              Expanded(flex: 3, child: Column(children: [Text('LTP', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)), Text('change', style: TextStyle(fontSize: 9.5, color: Colors.grey))])),
+                              Expanded(flex: 3, child: Column(children: [Text('Strike', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)), Text('PCR', style: TextStyle(fontSize: 9.5, color: Colors.grey))])),
+                              Expanded(flex: 3, child: Column(children: [Text('LTP', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)), Text('change', style: TextStyle(fontSize: 9.5, color: Colors.grey))])),
+                              Expanded(flex: 3, child: Column(children: [Text('OI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)), Text('change', style: TextStyle(fontSize: 9.5, color: Colors.grey))])),
+                            ],
+                          ),
+                        ),
+                        Divider(height: 1, color: isDark ? Colors.grey[850] : Colors.grey[200]),
+
+                        // Double-sided Option List
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: filteredChain.length,
+                          itemBuilder: (context, i) {
+                            final item = filteredChain[i];
+                            final double strikePrice = item['strike'].toDouble();
+
+                            final bool showSpotBefore = (i > 0 && activeSpot > filteredChain[i-1]['strike'] && activeSpot <= strikePrice);
+                            final bool showSpotAtStart = (i == 0 && activeSpot <= strikePrice);
+
+                            return Column(
+                              children: [
+                                if (showSpotAtStart || showSpotBefore) _buildAtmSpotDivider(isDark, activeSpot),
+                                _buildOptionChainRow(item, activeSpot, callsItmColor, putsItmColor, specs['lotSize'], isDark),
+                              ],
+                            );
+                          },
+                        ),
+                        if (filteredChain.isNotEmpty && activeSpot > filteredChain.last['strike'])
+                          _buildAtmSpotDivider(isDark, activeSpot),
+                      ],
+                    ),
+                  ),
+
+                  // Show All button row
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12, top: 4, bottom: 12),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[300]!, width: 1),
+                        ),
+                        child: Text(
+                          'Show All',
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Bottom Filter Pills Row
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: ['O = H', 'O = L', 'High OI', 'High Vol', 'High IV'].map((flt) {
+                          final isSel = _activeFilter == flt;
+                          return GestureDetector(
+                            onTap: () => setState(() => _activeFilter = flt),
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isSel ? AppColors.primary.withOpacity(0.1) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isSel ? AppColors.primary : (isDark ? Colors.grey[800]! : Colors.grey[300]!),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                flt,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: isSel ? AppColors.primary : (isDark ? Colors.grey[400] : Colors.grey[600]),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    });
   }
 
   Widget _buildAtmSpotDivider(bool isDark, double spotPrice) {
@@ -1883,8 +2069,13 @@ class _IndexDetailViewState extends State<_IndexDetailView> with SingleTickerPro
     final bool callItm = strike < spotPrice;
     final bool putItm = strike > spotPrice;
 
-    final String ceSymbol = '${widget.symbol.toUpperCase()} ${_selectedExpiry.toUpperCase()} $strike CALL';
-    final String peSymbol = '${widget.symbol.toUpperCase()} ${_selectedExpiry.toUpperCase()} $strike PUT';
+    final String ceSymbol = item['call_symbol'] != null && item['call_symbol'].toString().isNotEmpty
+        ? item['call_symbol'].toString()
+        : '${widget.symbol.toUpperCase()} ${_selectedExpiry.toUpperCase()} $strike CALL';
+        
+    final String peSymbol = item['put_symbol'] != null && item['put_symbol'].toString().isNotEmpty
+        ? item['put_symbol'].toString()
+        : '${widget.symbol.toUpperCase()} ${_selectedExpiry.toUpperCase()} $strike PUT';
 
     final Color callsBg = callItm ? (isDark ? const Color(0xFF2C2210) : const Color(0xFFFFFDF0)) : Colors.transparent;
     final Color putsBg = putItm ? (isDark ? const Color(0xFF201832) : const Color(0xFFF3E8FF)) : Colors.transparent;

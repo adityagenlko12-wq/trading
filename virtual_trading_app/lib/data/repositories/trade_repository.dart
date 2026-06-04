@@ -170,4 +170,17 @@ class TradeRepository {
       rethrow;
     }
   }
+
+  Future<Map<String, dynamic>> getOptionChain(String symbol, {String? expiry}) async {
+    try {
+      final Map<String, dynamic> queryParams = {};
+      if (expiry != null) {
+        queryParams['expiry'] = expiry;
+      }
+      final response = await apiClient.get('/api/option-chain/$symbol', queryParameters: queryParams);
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

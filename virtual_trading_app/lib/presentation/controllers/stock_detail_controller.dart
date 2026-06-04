@@ -21,6 +21,12 @@ class StockDetailController extends GetxController {
   var totalBidQty = 0.0.obs;
   var totalAskQty = 0.0.obs;
 
+  // Real-time Option Chain
+  var isLoadingOptionChain = false.obs;
+  var optionChainData = Rxn<Map<String, dynamic>>();
+  var selectedExpiry = ''.obs;
+  var expiries = <String>[].obs;
+
   // Order placing properties
   var isBuy = true.obs;
   var isLimit = false.obs;
@@ -32,9 +38,11 @@ class StockDetailController extends GetxController {
 
   void initialize(String symbol) {
     stockQuote.value = null; // Reset to show loader immediately
+    optionChainData.value = null; // Reset option chain
     _detailTimer?.cancel();
     
     fetchQuote(symbol);
+    fetchOptionChain(symbol);
     generateChartData();
     fetchMarketDepth(symbol);
 
@@ -42,6 +50,7 @@ class StockDetailController extends GetxController {
     _detailTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (stockQuote.value != null) {
         refreshQuoteSilent(symbol);
+        refreshOptionChainSilent(symbol);
       }
     });
   }
@@ -50,6 +59,37 @@ class StockDetailController extends GetxController {
   void onClose() {
     _detailTimer?.cancel();
     super.onClose();
+  }
+
+  Future<void> fetchOptionChain(String symbol, {String? expiry}) async {
+    try {
+      isLoadingOptionChain.value = true;
+      final data = await tradeRepository.getOptionChain(symbol, expiry: expiry);
+      optionChainData.value = data;
+      
+      final List<dynamic> expList = data['expiries'] ?? [];
+      expiries.value = expList.map((e) => e.toString()).toList();
+      
+      if (data['expiry'] != null) {
+        selectedExpiry.value = data['expiry'].toString();
+      }
+    } catch (_) {
+      // Quietly fail or mock fallback
+    } finally {
+      isLoadingOptionChain.value = false;
+    }
+  }
+
+  Future<void> refreshOptionChainSilent(String symbol) async {
+    try {
+      final data = await tradeRepository.getOptionChain(
+        symbol,
+        expiry: selectedExpiry.value.isNotEmpty ? selectedExpiry.value : null,
+      );
+      optionChainData.value = data;
+      final List<dynamic> expList = data['expiries'] ?? [];
+      expiries.value = expList.map((e) => e.toString()).toList();
+    } catch (_) {}
   }
 
   Future<void> fetchQuote(String symbol) async {

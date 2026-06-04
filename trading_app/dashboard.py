@@ -2717,7 +2717,6 @@ def api_get_stock_quote(symbol):
 
 
 @app.route('/api/indices/quotes')
-@login_required
 def api_get_all_indices_quotes():
     """API: Get real-time quotes for all enabled indices (NIFTY, BANKNIFTY, SENSEX, FINNIFTY, etc.)."""
     # Fallback data when live prices are unavailable

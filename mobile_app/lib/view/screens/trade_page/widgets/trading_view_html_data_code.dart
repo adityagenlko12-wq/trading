@@ -13,8 +13,7 @@ class TradingViewHtmlDataCode {
 </head>
 <body>
  <!-- TradingView Widget BEGIN -->
-
-
+  <div id="tradingview_92622"></div>
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <script type="text/javascript">
   new TradingView.widget(

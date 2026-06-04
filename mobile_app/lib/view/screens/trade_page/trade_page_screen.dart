@@ -235,9 +235,37 @@ class _TradePageScreenState extends State<TradePageScreen> {
                               Container(
                                 margin: const EdgeInsetsDirectional.symmetric(horizontal: Dimensions.space10, vertical: Dimensions.space15),
                                 height: MediaQuery.of(context).size.height / 1.85,
-                                child: TreadingViewFrameWidget(
-                                  symbolName: "${controller.tradeDetailsMarketPair?.listedMarketName}:${controller.tradeDetailsMarketPair?.symbol?.replaceAll("_", "")}",
-                                ),
+                                  child: () {
+                                    final coinSymbol = controller.tradeDetailsMarketPair?.coin?.symbol ?? '';
+                                    var tvSymbol = coinSymbol.replaceAll("_", "").replaceAll("/", "");
+                                    var exchange = controller.tradeDetailsMarketPair?.listedMarketName ?? 'NSE';
+                                    
+                                    // Map special index symbols for TradingView
+                                    if (tvSymbol == 'FINNIFTY') {
+                                      tvSymbol = 'CNXFINANCE';
+                                      exchange = 'NSE';
+                                    } else if (tvSymbol == 'MIDCPNIFTY') {
+                                      tvSymbol = 'NIFTY_MID_SELECT';
+                                      exchange = 'NSE';
+                                    } else if (tvSymbol == 'SENSEX') {
+                                      exchange = 'BSE';
+                                    } else if (tvSymbol == 'NIFTY') {
+                                      tvSymbol = 'NIFTY_50';
+                                      exchange = 'NSE';
+                                    } else if (tvSymbol == 'BANKNIFTY') {
+                                      tvSymbol = 'NIFTY_BANK';
+                                      exchange = 'NSE';
+                                    }
+                                    
+                                    // Default exchange fallback from 'INR' to 'NSE'
+                                    if (exchange == 'INR' || exchange == 'USD') {
+                                      exchange = 'NSE';
+                                    }
+                                    
+                                    return TreadingViewFrameWidget(
+                                      symbolName: "$exchange:$tvSymbol",
+                                    );
+                                  }(),
                               ),
                             ]
                           ],

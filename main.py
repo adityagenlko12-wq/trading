@@ -143,8 +143,9 @@ class AITradingSystem:
         # Validate configuration
         if not UPSTOX_CONFIG.access_token or UPSTOX_CONFIG.access_token == "your_access_token_here":
             logger.error("❌ UPSTOX_ACCESS_TOKEN not configured!")
-            logger.error("Please generate an access token and update .env file")
-            return False
+            logger.error("Please generate an access token and update environment variables/.env file")
+            set_system_status("Token Missing")
+            return True
         
         if not AI_CONFIG.api_key:
             logger.warning("⚠️ Gemini API key not configured - AI analysis disabled")
@@ -153,7 +154,8 @@ class AITradingSystem:
         enabled_indices = self.index_manager.get_enabled_indices()
         if not enabled_indices:
             logger.error("❌ No indices enabled! Enable at least one index.")
-            return False
+            set_system_status("No Indices Enabled")
+            return True
         
         logger.info(f"📊 Enabled indices: {', '.join([idx.display_name for idx in enabled_indices])}")
         
@@ -170,11 +172,12 @@ class AITradingSystem:
                 logger.warning(f"⚠️ Error fetching expiry for {index_config.display_name}: {e}")
         
         if not self._expiry_dates:
-            error_msg = "❌ <b>System Startup Failed</b>\n\nCould not fetch expiry dates from Upstox. Your <b>Access Token</b> might be invalid or expired.\n\nPlease run <code>python auth_helper.py</code> to generate a new token."
-            logger.error("Could not fetch expiry date for any index - Token likely invalid")
+            error_msg = "❌ <b>System Startup Warning</b>\n\nCould not fetch expiry dates from Upstox. Your <b>Access Token</b> might be invalid or expired.\n\nPlease generate a new token."
+            logger.error("Could not fetch expiry date for any index - Token likely invalid. Dashboard will remain running.")
             if TELEGRAM_CONFIG.enabled and TELEGRAM_CONFIG.bot_token:
                 await self.notifier.send_message(error_msg)
-            return False
+            set_system_status("Token Invalid")
+            return True
         
         logger.info(f"🤖 AI Analysis: {'Enabled' if self.ai_analyzer else 'Disabled'}")
         logger.info(f"🎯 Min Confidence: {AI_CONFIG.min_confidence}%")

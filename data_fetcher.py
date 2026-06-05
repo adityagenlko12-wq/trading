@@ -135,8 +135,14 @@ _TOKEN_URL = "https://trading.abdielaircon.com/get_token.php?key=vinance2024secr
 _TOKEN_TTL = 55 * 60  # 55 minutes (tokens expire at market close ~60 min window)
 
 def fetch_live_token() -> str:
-    """Fetch the Upstox access token from PHP server; cache it for 55 min."""
+    """Fetch the Upstox access token from local config/env or PHP server fallback; cache it for 55 min."""
     global _token_cache
+    
+    # Prioritize environment variable / local config if set
+    if UPSTOX_CONFIG.access_token and UPSTOX_CONFIG.access_token != "your_access_token_here":
+        logger.info("Using Upstox access token from local environment variable.")
+        return UPSTOX_CONFIG.access_token
+        
     now = time.time()
     if _token_cache["token"] and (now - _token_cache["fetched_at"]) < _TOKEN_TTL:
         return _token_cache["token"]

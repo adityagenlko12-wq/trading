@@ -675,6 +675,7 @@ DASHBOARD_HTML = """
                         <div style="padding: 16px; border-bottom: 1px solid var(--border-color); font-size: 12px; color: var(--text-secondary);">
                             Logged in as: <div id="user-email-display" style="font-weight: 600; color: #fff; margin-top: 4px;">user@example.com</div>
                         </div>
+                        <a href="/admin" id="admin-panel-link" class="dropdown-menu-item" style="text-decoration: none; display: none;">⚙️ Admin Panel</a>
                         <div class="dropdown-menu-item" onclick="openResetPortfolioConfirm()">🔄 Reset Portfolio</div>
                         <div class="dropdown-menu-item" onclick="logout()">🚪 Logout</div>
                     </div>
@@ -1931,6 +1932,16 @@ DASHBOARD_HTML = """
                 document.getElementById('user-email-display').textContent = user.email || '';
                 document.getElementById('avatar-initials').textContent = (user.name || 'U')[0].toUpperCase();
                 document.getElementById('wallet-display').textContent = '₹' + (user.wallet_balance || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                
+                // Show Admin Panel option if user is admin
+                const adminLink = document.getElementById('admin-panel-link');
+                if (adminLink) {
+                    if (user.is_admin) {
+                        adminLink.style.display = 'flex';
+                    } else {
+                        adminLink.style.display = 'none';
+                    }
+                }
             } catch(e) { console.error(e); }
         }
 

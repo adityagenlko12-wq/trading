@@ -2788,14 +2788,14 @@ def get_commodity_data():
         
         # Default reference spot prices and daily changes for MCX tickers if API quote fails
         commodity_fallbacks = {
-            "GOLD": {"price": 72540.0, "change": 680.0, "pct": 0.95},
-            "GOLDM": {"price": 72610.0, "change": 720.0, "pct": 1.00},
-            "SILVER": {"price": 89450.0, "change": -450.0, "pct": -0.50},
-            "SILVERM": {"price": 89520.0, "change": -360.0, "pct": -0.40},
-            "CRUDEOIL": {"price": 6240.0, "change": -75.0, "pct": -1.19},
-            "CRUDEOILM": {"price": 6244.0, "change": -76.0, "pct": -1.20},
-            "NATURALGAS": {"price": 212.50, "change": 7.00, "pct": 3.41},
-            "NATGASMINI": {"price": 212.80, "change": 7.10, "pct": 3.45},
+            "GOLD": {"price": 153490.0, "change": 2500.0, "pct": 1.66},
+            "GOLDM": {"price": 153600.0, "change": 2500.0, "pct": 1.65},
+            "SILVER": {"price": 253000.0, "change": 6100.0, "pct": 2.47},
+            "SILVERM": {"price": 253500.0, "change": 6200.0, "pct": 2.50},
+            "CRUDEOIL": {"price": 7596.0, "change": -476.0, "pct": -5.90},
+            "CRUDEOILM": {"price": 7600.0, "change": -476.0, "pct": -5.88},
+            "NATURALGAS": {"price": 290.00, "change": -6.00, "pct": -2.03},
+            "NATGASMINI": {"price": 290.50, "change": -6.00, "pct": -2.02},
             "ZINC": {"price": 245.80, "change": 0.50, "pct": 0.20},
             "ZINCMINI": {"price": 246.00, "change": 0.50, "pct": 0.20},
             "ALUMINIUM": {"price": 228.30, "change": -1.85, "pct": -0.80},
@@ -2819,15 +2819,59 @@ def get_commodity_data():
                     futures_to_query.append(f['key'])
                     fut_key_to_asset[f['key']] = asset
 
-        # 2. Resolve options for each asset
+        # 2. Query futures quotes first to get actual spot/future prices
+        async def fetch_futures_async():
+            try:
+                return await fetcher.get_quotes_batch(futures_to_query)
+            except Exception as e:
+                logger.error(f"Failed to query commodity futures quotes: {e}")
+                return {}
+
+        futures_quotes = run_async_in_new_loop(fetch_futures_async)
+
+        def _get_futures_quote(key):
+            return (futures_quotes.get(key)
+                    or futures_quotes.get(key.replace('|', ':'))
+                    or futures_quotes.get(key.replace(':', '|'))
+                    or {})
+
+        # Resolve spot price for each asset
+        spot_prices = {}
+        live_markets = []
+        for asset, inst in resolved_futures.items():
+            fallback = commodity_fallbacks.get(asset, {"price": 100.0, "change": 0.0, "pct": 0.0})
+            quote = _get_futures_quote(inst['key'])
+            
+            is_live = bool(quote.get('last_price'))
+            price = quote.get('last_price') or fallback["price"]
+            net_change = quote.get('net_change') or fallback["change"]
+            
+            ohlc = quote.get('ohlc') or {}
+            open_p = ohlc.get('open') or (price - net_change)
+            pct_change = (net_change / open_p * 100) if open_p > 0 else fallback["pct"]
+            
+            spot_prices[asset] = price
+            
+            live_markets.append({
+                "symbol": inst['symbol'],
+                "asset": asset,
+                "key": inst['key'],
+                "exchange": inst.get('exchange', 'MCX'),
+                "lot_size": MCX_LOT_SIZES.get(asset, 1),
+                "price": round(price, 2),
+                "change": round(net_change, 2),
+                "change_percent": round(pct_change, 2),
+                "is_live": is_live
+            })
+
+        # 3. Resolve options close to the actual spot/future price
         options_to_query = []
         opt_key_to_meta = {}
         resolved_options_map = {} # asset -> list of instruments
         
         for cat_name, sub_cats in categories.items():
             for sub_name, asset in sub_cats.items():
-                fallback_info = commodity_fallbacks.get(asset, {"price": 100.0})
-                spot_price = fallback_info["price"]
+                spot_price = spot_prices.get(asset) or commodity_fallbacks.get(asset, {"price": 100.0})["price"]
                 
                 opts = [x for x in mcx_inst if x.get('asset') == asset and x.get('type') in ('CE', 'PE')]
                 opts = [x for x in opts if x.get('expiry') and x.get('expiry') >= current_time_ms]
@@ -2845,49 +2889,21 @@ def get_commodity_data():
                         options_to_query.append(o['key'])
                         opt_key_to_meta[o['key']] = o
 
-        # 3. Query all quotes in batch
-        async def fetch_async():
-            all_keys = list(set(futures_to_query + options_to_query))
+        # 4. Query options quotes in batch
+        async def fetch_options_async():
             try:
-                return await fetcher.get_quotes_batch(all_keys)
+                return await fetcher.get_quotes_batch(options_to_query)
             except Exception as e:
-                logger.error(f"Failed to query commodity quotes in batch: {e}")
+                logger.error(f"Failed to query commodity options quotes: {e}")
                 return {}
 
-        raw_quotes = run_async_in_new_loop(fetch_async)
+        options_quotes = run_async_in_new_loop(fetch_options_async)
 
-        def _get_quote(key):
-            """Look up a quote by instrument key, handling both | and : separators."""
-            return (raw_quotes.get(key)
-                    or raw_quotes.get(key.replace('|', ':'))
-                    or raw_quotes.get(key.replace(':', '|'))
+        def _get_option_quote(key):
+            return (options_quotes.get(key)
+                    or options_quotes.get(key.replace('|', ':'))
+                    or options_quotes.get(key.replace(':', '|'))
                     or {})
-
-        # 4. Process Live Markets (Futures)
-        live_markets = []
-        for asset, inst in resolved_futures.items():
-            fallback = commodity_fallbacks.get(asset, {"price": 100.0, "change": 0.0, "pct": 0.0})
-            quote = _get_quote(inst['key'])
-            
-            is_live = bool(quote.get('last_price'))
-            price = quote.get('last_price') or fallback["price"]
-            net_change = quote.get('net_change') or fallback["change"]
-            
-            ohlc = quote.get('ohlc') or {}
-            open_p = ohlc.get('open') or (price - net_change)
-            pct_change = (net_change / open_p * 100) if open_p > 0 else fallback["pct"]
-            
-            live_markets.append({
-                "symbol": inst['symbol'],
-                "asset": asset,
-                "key": inst['key'],
-                "exchange": inst.get('exchange', 'MCX'),
-                "lot_size": MCX_LOT_SIZES.get(asset, 1),
-                "price": round(price, 2),
-                "change": round(net_change, 2),
-                "change_percent": round(pct_change, 2),
-                "is_live": is_live
-            })
 
         # Helper to estimate option price using simple intrinsic + time value fallback
         def get_fallback_option_price(strike, opt_type, fut_price, asset_name):
@@ -2919,7 +2935,7 @@ def get_commodity_data():
                 
                 inst_opts = resolved_options_map.get(asset) or []
                 for o in inst_opts:
-                    quote = _get_quote(o['key'])
+                    quote = _get_option_quote(o['key'])
                     
                     is_live = bool(quote.get('last_price'))
                     price = quote.get('last_price')

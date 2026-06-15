@@ -128,3 +128,16 @@ VIRTUAL_TRADING_TELEGRAM = VirtualTradingTelegramConfig(
     enabled=os.getenv("VT_TELEGRAM_ENABLED", "true").lower() == "true",
 )
 
+# Delta Exchange API configuration
+@dataclass
+class DeltaConfig:
+    """Delta Exchange API configuration."""
+    api_key: str = ""
+    api_secret: str = ""
+    base_url: str = "https://api.delta.exchange/v2"
+
+DELTA_CONFIG = DeltaConfig(
+    api_key=os.getenv("DELTA_API_KEY", ""),
+    api_secret=os.getenv("DELTA_API_SECRET", ""),
+)
+

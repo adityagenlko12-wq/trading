@@ -651,9 +651,17 @@ DASHBOARD_HTML = """
                 <input type="text" id="stock-search" class="search-bar" placeholder="Search stocks (e.g. RELIANCE, TCS)..." oninput="handleSearch(this.value)">
                 <div id="search-results" class="search-results"></div>
             </div>
-
+ 
             <!-- Profile & Wallet Dropdown -->
             <div class="header-right">
+                <!-- Provider Selector -->
+                <div class="provider-switch-container" style="position: relative; margin-right: 8px;">
+                    <select id="provider-select" onchange="changeProvider(this.value)" style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: #fff; padding: 8px 12px; border-radius: 12px; font-size: 14px; font-weight: 500; outline: none; cursor: pointer; font-family: var(--font-family);">
+                        <option value="upstox">🇮🇳 India NSE/MCX</option>
+                        <option value="delta">🪙 Crypto Derivatives</option>
+                    </select>
+                </div>
+
                 <div style="font-size: 14px; color: var(--accent-green); font-weight: 700; background: rgba(0, 210, 118, 0.1); padding: 6px 14px; border-radius: 15px; border: 1px solid rgba(0, 210, 118, 0.2);">
                     💼 Balance: <span id="wallet-display">₹10,00,000.00</span>
                 </div>
@@ -1166,6 +1174,56 @@ DASHBOARD_HTML = """
         let chartRefreshInterval = null;
         let supportLine = null, resistanceLine = null, vwapLine = null;
 
+        // Helper to format currency dynamically based on active provider
+        function formatCurrency(val) {
+            const selectEl = document.getElementById('provider-select');
+            const sym = selectEl?.value === 'delta' ? '$' : '₹';
+            const num = Math.abs(Number(val) || 0);
+            const decimals = selectEl?.value === 'delta' ? 2 : 2;
+            const formattedNum = num.toLocaleString(sym === '$' ? 'en-US' : 'en-IN', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+            return (Number(val) < 0 ? '-' : '') + sym + formattedNum;
+        }
+
+        async function loadProvider() {
+            try {
+                const res = await fetch('/api/provider');
+                const data = await res.json();
+                const provider = data.provider || 'upstox';
+                document.getElementById('provider-select').value = provider;
+            } catch (e) {
+                console.error("Failed to load provider", e);
+            }
+        }
+
+        async function changeProvider(val) {
+            try {
+                const res = await fetch('/api/provider', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider: val })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    const defaultIndex = val === 'delta' ? 'BTC' : 'NIFTY';
+                    currentChartIndex = defaultIndex;
+                    
+                    // Reload watchlists, details, charts, popular list, indices
+                    loadUserData();
+                    loadPopularStocks();
+                    switchWatchlist(1);
+                    fetchIndexSpots();
+                    initChart();
+                    updateStockDetails(defaultIndex);
+                    fetchAIAnalysis(defaultIndex);
+                }
+            } catch (e) {
+                console.error("Failed to change provider", e);
+            }
+        }
+
         // Initialize Chart
         function initChart() {
             const container = document.getElementById('chart-container');
@@ -1583,7 +1641,9 @@ DASHBOARD_HTML = """
         // Popular stocks renderer
         async function loadPopularStocks() {
             try {
-                const symbols = popularEquities.join(',');
+                const providerVal = document.getElementById('provider-select').value;
+                const symList = providerVal === 'delta' ? ['BTC', 'ETH'] : popularEquities;
+                const symbols = symList.join(',');
                 const res = await fetch(`/api/stock/quote/${symbols}`);
                 const stocks = await res.json();
                 
@@ -1598,7 +1658,7 @@ DASHBOARD_HTML = """
                             <tr onclick="switchChart('${s.symbol}')" style="cursor: pointer;">
                                 <td><strong>${s.symbol}</strong></td>
                                 <td style="color: var(--text-secondary); font-size: 13px;">${s.company_name || s.symbol}</td>
-                                <td>₹${ltp.toFixed(2)}</td>
+                                <td>${formatCurrency(ltp)}</td>
                                 <td class="${dayChange >= 0 ? 'text-green' : 'text-red'}">${dayChange >= 0 ? '+' : ''}${pct.toFixed(2)}%</td>
                                 <td style="text-align: right;" onclick="event.stopPropagation();">
                                     <button class="wl-tab" onclick="openOrderForm('STOCK', '${s.symbol}', 'BUY', 0, ${ltp.toFixed(2)}, 1)">Trade</button>
@@ -1765,9 +1825,9 @@ DASHBOARD_HTML = """
                                 <td><span class="wl-tab" style="padding: 2px 6px;">${p.type}</span></td>
                                 <td style="color: ${p.signal_type === 'PUT' ? 'var(--accent-red)' : 'var(--accent-green)'};">${p.signal_type}</td>
                                 <td>${p.quantity} Lots (${p.lot_size} base)</td>
-                                <td>₹${p.entry_price.toFixed(2)}</td>
-                                <td>₹${(p.current_premium || p.entry_price).toFixed(2)}</td>
-                                <td style="font-weight: 700; color: ${pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'};">${pnl >= 0 ? '+' : ''}₹${pnl.toFixed(2)}</td>
+                                <td>${formatCurrency(p.entry_price)}</td>
+                                <td>${formatCurrency(p.current_premium || p.entry_price)}</td>
+                                <td style="font-weight: 700; color: ${pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'};">${pnl >= 0 ? '+' : ''}${formatCurrency(pnl)}</td>
                                 <td style="text-align: right;" onclick="event.stopPropagation();">
                                     <button class="trade-btn put-btn" onclick="manualExitPosition(${p.id})">Exit</button>
                                 </td>
@@ -1783,7 +1843,7 @@ DASHBOARD_HTML = """
                 if (data.holdings && data.holdings.length > 0) {
                     hBody.innerHTML = data.holdings.map(h => {
                         // LTP estimation
-                        const currentLtp = h.average_price * 1.02; // Seeded value
+                        const currentLtp = h.current_price || (h.average_price * 1.02);
                         const invested = h.quantity * h.average_price;
                         const currentVal = h.quantity * currentLtp;
                         const pnl = currentVal - invested;
@@ -1793,10 +1853,10 @@ DASHBOARD_HTML = """
                                 <td><strong>${h.company_name}</strong></td>
                                 <td>${h.symbol}</td>
                                 <td>${h.quantity}</td>
-                                <td>₹${h.average_price.toFixed(2)}</td>
-                                <td>₹${currentLtp.toFixed(2)}</td>
-                                <td>₹${invested.toLocaleString()}</td>
-                                <td style="font-weight: 700; color: ${pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'};">${pnl >= 0 ? '+' : ''}₹${pnl.toFixed(2)}</td>
+                                <td>${formatCurrency(h.average_price)}</td>
+                                <td>${formatCurrency(currentLtp)}</td>
+                                <td>${formatCurrency(invested)}</td>
+                                <td style="font-weight: 700; color: ${pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'};">${pnl >= 0 ? '+' : ''}${formatCurrency(pnl)}</td>
                                 <td style="text-align: right;" onclick="event.stopPropagation();">
                                     <button class="trade-btn put-btn" onclick="openOrderForm('STOCK', '${h.symbol}', 'SELL', 0, ${currentLtp.toFixed(2)}, 1)">Sell</button>
                                 </td>
@@ -2094,7 +2154,13 @@ DASHBOARD_HTML = """
         }
 
         // Startup App
-        function startApp() {
+        async function startApp() {
+            await loadProvider();
+            
+            const providerVal = document.getElementById('provider-select').value;
+            const defaultIndex = providerVal === 'delta' ? 'BTC' : 'NIFTY';
+            currentChartIndex = defaultIndex;
+            
             loadUserData();
             loadPopularStocks();
             switchWatchlist(1);
@@ -2106,8 +2172,8 @@ DASHBOARD_HTML = """
             
             initChart();
             startChartLoop();
-            updateStockDetails('NIFTY');
-            fetchAIAnalysis('NIFTY');
+            updateStockDetails(defaultIndex);
+            fetchAIAnalysis(defaultIndex);
         }
 
         window.onload = startApp;
@@ -2160,42 +2226,70 @@ def get_candles(index_name):
     cached_data = dashboard_state["market_data"].get(index_name, {})
     
     try:
-        from data_fetcher import fetch_candles_sync, UpstoxDataFetcher
-        from index_config import AVAILABLE_INDICES
+        from performance_manager import get_performance_manager
+        db_mgr = get_performance_manager()
+        provider = db_mgr.get_setting("active_provider", "upstox")
         
-        index_config = AVAILABLE_INDICES.get(index_name)
-        if index_config:
-            symbol_key = index_config.symbol
-        else:
-            # Resolve stock symbol to instrument key
-            fetcher = UpstoxDataFetcher()
-            legacy_mappings = {
-                "ZOMATO": "ETERNAL",
-                "ZOMA": "ETERNAL"
-            }
-            target_sym = legacy_mappings.get(index_name.upper(), index_name.upper())
-            
-            all_inst = fetcher.get_all_instruments()
-            stock_info = None
-            for s in all_inst:
-                if s["symbol"] == target_sym:
-                    if s.get("segment") == "NSE_EQ":
-                        stock_info = s
-                        break
-                    elif stock_info is None:
-                        stock_info = s
-            
-            if stock_info:
-                symbol_key = stock_info["key"]
-            else:
-                symbol_key = index_name  # Direct key fallback
-                
-        # Fetch live candles
-        candles = fetch_candles_sync(
-            instrument_key=symbol_key,
-            interval=str(interval),
-            unit="minutes"
+        is_crypto = (
+            index_name.upper() in ["BTC", "ETH", "BTCUSDT", "ETHUSDT"] or
+            index_name.startswith("C-") or
+            index_name.startswith("P-") or
+            provider == "delta"
         )
+        
+        if is_crypto:
+            symbol_key = index_name
+            if symbol_key.upper() in ["BTC", "ETH"]:
+                symbol_key = f"{symbol_key.upper()}USDT"
+            elif symbol_key.upper() not in ["BTCUSDT", "ETHUSDT"] and not symbol_key.startswith("C-") and not symbol_key.startswith("P-"):
+                if "BANK" in symbol_key.upper():
+                    symbol_key = "ETHUSDT"
+                else:
+                    symbol_key = "BTCUSDT"
+                    
+            from delta_fetcher import fetch_delta_candles_sync
+            candles = fetch_delta_candles_sync(
+                symbol=symbol_key,
+                interval=str(interval),
+                unit="minutes"
+            )
+        else:
+            from data_fetcher import fetch_candles_sync, UpstoxDataFetcher
+            from index_config import AVAILABLE_INDICES
+            
+            index_config = AVAILABLE_INDICES.get(index_name)
+            if index_config:
+                symbol_key = index_config.symbol
+            else:
+                # Resolve stock symbol to instrument key
+                fetcher = UpstoxDataFetcher()
+                legacy_mappings = {
+                    "ZOMATO": "ETERNAL",
+                    "ZOMA": "ETERNAL"
+                }
+                target_sym = legacy_mappings.get(index_name.upper(), index_name.upper())
+                
+                all_inst = fetcher.get_all_instruments()
+                stock_info = None
+                for s in all_inst:
+                    if s["symbol"] == target_sym:
+                        if s.get("segment") == "NSE_EQ":
+                            stock_info = s
+                            break
+                        elif stock_info is None:
+                            stock_info = s
+                
+                if stock_info:
+                    symbol_key = stock_info["key"]
+                else:
+                    symbol_key = index_name  # Direct key fallback
+                    
+            # Fetch live candles
+            candles = fetch_candles_sync(
+                instrument_key=symbol_key,
+                interval=str(interval),
+                unit="minutes"
+            )
         
         if candles:
             formatted = [
@@ -2352,9 +2446,95 @@ def api_get_portfolio():
         from virtual_trader import get_virtual_trader
         trader = get_virtual_trader()
         
-        stats = trader.get_stats(user['email'])
         holdings = db_mgr.get_holdings(user['email'])
         positions = db_mgr.get_active_positions(user['email'])
+        
+        # Dynamically update positions and holdings with live quotes
+        provider = db_mgr.get_setting("active_provider", "upstox")
+        
+        async def update_portfolio_prices_async():
+            # (Note: Delta Exchange updates are commented/skipped for now, per user request)
+            if provider == "upstox":
+                # 1. Update active open option positions
+                open_positions = [pos for pos in positions if pos.get("status") == "OPEN" and pos.get("type") == "OPTION"]
+                if open_positions:
+                    unique_symbols = list(set(pos["symbol"] for pos in open_positions))
+                    from index_config import AVAILABLE_INDICES
+                    from data_fetcher import UpstoxDataFetcher
+                    
+                    keys_to_fetch = []
+                    symbol_to_key = {}
+                    for sym in unique_symbols:
+                        idx_config = AVAILABLE_INDICES.get(sym.upper())
+                        if idx_config:
+                            keys_to_fetch.append(idx_config.symbol)
+                            symbol_to_key[sym] = idx_config.symbol
+                        else:
+                            keys_to_fetch.append(sym)
+                            symbol_to_key[sym] = sym
+                            
+                    fetcher = UpstoxDataFetcher()
+                    try:
+                        quotes = await fetcher.get_quotes_batch(keys_to_fetch)
+                        
+                        # Recalculate and update database
+                        for pos in open_positions:
+                            pos_id = pos["id"]
+                            entry_price = pos["entry_price"]
+                            spot_at_entry = pos.get("spot_at_entry") or entry_price
+                            signal_type = pos["signal_type"]
+                            quantity = pos["quantity"]
+                            lot_size = pos["lot_size"]
+                            
+                            key = symbol_to_key.get(pos["symbol"])
+                            key_colon = key.replace("|", ":") if key else ""
+                            quote_val = quotes.get(key) or quotes.get(key_colon)
+                            spot_price = quote_val.get("last_price", 0.0) if quote_val else 0.0
+                            
+                            if spot_price > 0:
+                                spot_change = spot_price - spot_at_entry
+                                if signal_type in ('CALL', 'CE'):
+                                    premium_change = spot_change * 0.5
+                                else:
+                                    premium_change = -spot_change * 0.5
+                                    
+                                current_premium = max(1.0, entry_price + premium_change)
+                                current_pnl = (current_premium - entry_price) * quantity * lot_size
+                                
+                                # Update database
+                                db_mgr.update_position_price(pos_id, current_premium, current_pnl)
+                    except Exception as pe:
+                        logger.error(f"Error updating positions in api_get_portfolio: {pe}")
+                    finally:
+                        await fetcher.close()
+                        
+                # 2. Update holdings (delivery stocks)
+                if holdings:
+                    stock_symbols = list(set(h["symbol"] for h in holdings))
+                    from data_fetcher import UpstoxDataFetcher
+                    fetcher = UpstoxDataFetcher()
+                    try:
+                        quotes_list = await fetcher.get_stock_quotes(stock_symbols)
+                        quote_map = {q["symbol"]: q["ltp"] for q in quotes_list if "symbol" in q and "ltp" in q}
+                        
+                        # Map live prices back to holdings list
+                        for h in holdings:
+                            sym = h["symbol"]
+                            if sym in quote_map:
+                                h["current_price"] = quote_map[sym]
+                    except Exception as he:
+                        logger.error(f"Error updating holdings in api_get_portfolio: {he}")
+                    finally:
+                        await fetcher.close()
+                        
+        try:
+            run_async_in_new_loop(update_portfolio_prices_async)
+            # Re-fetch positions after DB updates
+            positions = db_mgr.get_active_positions(user['email'])
+        except Exception as ue:
+            logger.error(f"Error running portfolio updates: {ue}")
+            
+        stats = trader.get_stats(user['email'])
         trades = db_mgr.get_user_trades(user['email'], limit=20)
         
         return jsonify({
@@ -3100,6 +3280,67 @@ def api_get_stock_analysis(symbol):
 def api_get_option_chain(index):
     """API: Fetch option chain for index/commodity with nearest expiry date and all sorted expiries."""
     try:
+        from performance_manager import get_performance_manager
+        db_mgr = get_performance_manager()
+        provider = db_mgr.get_setting("active_provider", "upstox")
+        
+        is_crypto = index.upper() in ["BTC", "ETH"] or provider == "delta"
+        if is_crypto:
+            # Determine target crypto asset
+            crypto_asset = index.upper()
+            if crypto_asset not in ["BTC", "ETH"]:
+                crypto_asset = "BTC"
+                
+            expiry = request.args.get('expiry')
+            
+            from delta_fetcher import DeltaDataFetcher
+            fetcher = DeltaDataFetcher()
+            
+            async def fetch_delta_chain_data(asset, exp_date):
+                try:
+                    nearest_exp, all_expiries = await fetcher.get_expiry_dates(asset)
+                    if not exp_date:
+                        exp_date = nearest_exp
+                    if not exp_date:
+                        return None, 0.0, None, [], "Could not determine expiry date"
+                    
+                    strikes, spot_price = await fetcher.get_option_chain(exp_date, asset)
+                    return strikes, spot_price, exp_date, all_expiries, None
+                except Exception as e:
+                    return None, 0.0, None, [], f"Error: {e}"
+                finally:
+                    await fetcher.close()
+                    
+            strikes, spot_price, expiry, expiries, err = run_async_in_new_loop(fetch_delta_chain_data, crypto_asset, expiry)
+            if err:
+                return jsonify({"error": err}), 400
+            if strikes is None:
+                return jsonify({"error": "Failed to fetch strikes"}), 500
+                
+            formatted_strikes = []
+            for s in strikes:
+                formatted_strikes.append({
+                    "strike_price": s.strike_price,
+                    "call_ltp": s.call_ltp,
+                    "call_oi": s.call_oi,
+                    "put_ltp": s.put_ltp,
+                    "put_oi": s.put_oi,
+                    "call_key": s.call_key,
+                    "put_key": s.put_key,
+                    "call_iv": s.call_iv,
+                    "put_iv": s.put_iv,
+                    "expiry": expiry
+                })
+                
+            lot_size = 0.001 if crypto_asset == "BTC" else 0.01
+            return jsonify({
+                "expiry": expiry,
+                "expiries": expiries,
+                "spot_price": spot_price,
+                "strikes": formatted_strikes,
+                "lot_size": lot_size
+            })
+
         from index_config import AVAILABLE_INDICES
         index_config = AVAILABLE_INDICES.get(index.upper())
         
@@ -3339,9 +3580,100 @@ def api_get_option_chain(index):
 def api_get_stock_quote(symbol):
     """API: Get real-time quotes and details for single or multiple comma-separated symbols."""
     try:
-        from data_fetcher import UpstoxDataFetcher
+        from performance_manager import get_performance_manager
+        db_mgr = get_performance_manager()
+        provider = db_mgr.get_setting("active_provider", "upstox")
+        
         symbols = [s.strip().upper() for s in symbol.split(",")]
         
+        def is_crypto_symbol(s: str) -> bool:
+            return s.startswith("C-") or s.startswith("P-") or s in ["BTC", "ETH", "BTCUSDT", "ETHUSDT"]
+            
+        def resolve_crypto_symbol(s: str) -> str:
+            if s == "NIFTY" or s == "NIFTY 50":
+                return "BTCUSDT"
+            if s == "BANKNIFTY" or s == "BANK NIFTY":
+                return "ETHUSDT"
+            if s in ["BTC", "ETH"]:
+                return f"{s}USDT"
+            return s
+            
+        has_crypto = any(is_crypto_symbol(s) for s in symbols) or provider == "delta"
+        
+        if has_crypto:
+            import urllib.request
+            import json
+            results = []
+            for s in symbols:
+                s_resolved = resolve_crypto_symbol(s)
+                if provider == "delta" and not is_crypto_symbol(s):
+                    if "BANK" in s.upper():
+                        s_resolved = "ETHUSDT"
+                    else:
+                        s_resolved = "BTCUSDT"
+                        
+                try:
+                    url = f"https://api.delta.exchange/v2/tickers/{s_resolved}"
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req, timeout=5) as response:
+                        data = json.loads(response.read().decode('utf-8'))
+                        if data.get('success'):
+                            ticker = data.get('result', {})
+                            last_price = float(ticker.get('close') or ticker.get('mark_price') or 0.0)
+                            open_p = float(ticker.get('open') or last_price)
+                            pct_change = float(ticker.get('ltp_change_24h') or 0.0)
+                            day_change = (pct_change / 100.0) * open_p
+                            volume = int(float(ticker.get('volume') or 0.0))
+                            
+                            display_name = s_resolved
+                            if s_resolved == "BTCUSDT":
+                                display_name = "Bitcoin Perpetual"
+                            elif s_resolved == "ETHUSDT":
+                                display_name = "Ethereum Perpetual"
+                            elif s_resolved.startswith("C-") or s_resolved.startswith("P-"):
+                                parts = s_resolved.split("-")
+                                display_name = f"{parts[1]} {parts[2]} {'Call' if parts[0]=='C' else 'Put'}"
+                                
+                            results.append({
+                                "symbol": s,
+                                "company_name": display_name,
+                                "key": s_resolved,
+                                "ltp": last_price,
+                                "day_change": round(day_change, 2),
+                                "percentage_change": round(pct_change, 2),
+                                "open": open_p,
+                                "high": float(ticker.get('high') or 0.0),
+                                "low": float(ticker.get('low') or 0.0),
+                                "close": float(ticker.get('close') or 0.0),
+                                "volume": volume,
+                                "market_cap": (volume * last_price),
+                                "exchange": "DELTA"
+                            })
+                except Exception as e:
+                    logger.error(f"Failed to fetch Delta quote for {s_resolved}: {e}")
+                    results.append({
+                        "symbol": s,
+                        "company_name": s,
+                        "key": s_resolved,
+                        "ltp": 0.0,
+                        "day_change": 0.0,
+                        "percentage_change": 0.0,
+                        "open": 0.0,
+                        "high": 0.0,
+                        "low": 0.0,
+                        "close": 0.0,
+                        "volume": 0,
+                        "market_cap": 0.0,
+                        "exchange": "DELTA"
+                    })
+                    
+            if "," not in symbol:
+                if not results:
+                    return jsonify({"error": f"Symbol not found: {symbol}"}), 404
+                return jsonify(results[0])
+            return jsonify(results)
+            
+        from data_fetcher import UpstoxDataFetcher
         async def fetch_quotes():
             fetcher = UpstoxDataFetcher()
             try:
@@ -3411,9 +3743,83 @@ def api_get_stock_quote(symbol):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/provider', methods=['GET', 'POST'])
+def api_provider():
+    """GET/POST current active provider (upstox or delta)."""
+    from performance_manager import get_performance_manager
+    db_mgr = get_performance_manager()
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or request.values or {}
+        provider = data.get("provider", "upstox").lower()
+        if provider not in ["upstox", "delta"]:
+            return jsonify({"error": "Invalid provider"}), 400
+        db_mgr.set_setting("active_provider", provider)
+        return jsonify({"status": "success", "provider": provider})
+    else:
+        provider = db_mgr.get_setting("active_provider", "upstox")
+        return jsonify({"provider": provider})
+
+
 @app.route('/api/indices/quotes')
 def api_get_all_indices_quotes():
     """API: Get real-time quotes for all enabled indices (NIFTY, BANKNIFTY, SENSEX, FINNIFTY, etc.)."""
+    from performance_manager import get_performance_manager
+    db_mgr = get_performance_manager()
+    provider = db_mgr.get_setting("active_provider", "upstox")
+    
+    if provider == "delta":
+        import urllib.request
+        import json
+        results = []
+        for asset, display_name, lot_size in [("BTC", "Bitcoin", 0.001), ("ETH", "Ethereum", 0.01)]:
+            symbol = f"{asset}USDT"
+            try:
+                url = f"https://api.delta.exchange/v2/tickers/{symbol}"
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    data = json.loads(response.read().decode('utf-8'))
+                    if data.get('success'):
+                        ticker = data.get('result', {})
+                        last_price = float(ticker.get('close') or ticker.get('mark_price') or 0.0)
+                        open_p = float(ticker.get('open') or last_price)
+                        pct_change = float(ticker.get('ltp_change_24h') or 0.0)
+                        day_change = (pct_change / 100.0) * open_p
+                        
+                        results.append({
+                            "symbol":            asset,
+                            "display_name":      display_name,
+                            "exchange":          "DELTA",
+                            "enabled":           True,
+                            "lot_size":          lot_size,
+                            "ltp":               last_price,
+                            "day_change":        round(day_change, 2),
+                            "percentage_change": round(pct_change, 2),
+                            "open":              open_p,
+                            "high":              float(ticker.get('high') or 0.0),
+                            "low":               float(ticker.get('low') or 0.0),
+                            "close":             float(ticker.get('close') or 0.0),
+                            "is_live":           True,
+                        })
+            except Exception as e:
+                logger.error(f"Failed to fetch Delta quote for {asset}: {e}")
+                fb_ltp = 65000.0 if asset == "BTC" else 3500.0
+                results.append({
+                    "symbol":            asset,
+                    "display_name":      display_name,
+                    "exchange":          "DELTA",
+                    "enabled":           True,
+                    "lot_size":          lot_size,
+                    "ltp":               fb_ltp,
+                    "day_change":        0.0,
+                    "percentage_change": 0.0,
+                    "open":              fb_ltp,
+                    "high":              fb_ltp,
+                    "low":               fb_ltp,
+                    "close":             fb_ltp,
+                    "is_live":           False,
+                })
+        return jsonify(results)
+
     # Fallback data when live prices are unavailable
     FALLBACK = {
         "NIFTY":      {"ltp": 24500.00, "day_change": 120.50,  "percentage_change": 0.49,  "open": 24380.0, "high": 24550.0, "low": 24300.0},
@@ -3527,6 +3933,133 @@ def api_admin_configure_wallet():
         return jsonify({"status": "ok", "message": f"Default welcome balance updated to ₹{amount:,.2f}"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+def update_env_variable(key: str, value: str):
+    """Update process environment, local .env file, and Render.com if configured."""
+    import os
+    import requests
+    from performance_manager import get_performance_manager
+    db_mgr = get_performance_manager()
+    
+    # 1. Update active process environment
+    os.environ[key] = value
+    
+    # 2. Update local .env file
+    try:
+        env_lines = []
+        if os.path.exists(".env"):
+            with open(".env", "r") as f:
+                env_lines = f.readlines()
+        
+        key_found = False
+        for idx, line in enumerate(env_lines):
+            if line.strip().startswith(f"{key}="):
+                env_lines[idx] = f"{key}={value}\n"
+                key_found = True
+                break
+        if not key_found:
+            env_lines.append(f"{key}={value}\n")
+            
+        with open(".env", "w") as f:
+            f.writelines(env_lines)
+    except Exception as e:
+        logger.error(f"Error writing to .env: {e}")
+        
+    # 3. Update on Render.com if credentials are set
+    render_api_key = db_mgr.get_setting("render_api_key", "")
+    render_service_id = db_mgr.get_setting("render_service_id", "")
+    
+    if render_api_key and render_service_id:
+        url = f"https://api.render.com/v1/services/{render_service_id}/env-vars/{key}"
+        headers = {
+            "Authorization": f"Bearer {render_api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+        data = {"value": value}
+        try:
+            resp = requests.put(url, json=data, headers=headers, timeout=10)
+            if resp.status_code not in (200, 201):
+                logger.error(f"Render.com env-vars update failed: {resp.status_code} - {resp.text}")
+                raise Exception(f"Render API error {resp.status_code}: {resp.text}")
+        except Exception as e:
+            logger.error(f"Failed to update {key} on Render.com: {e}")
+            raise e
+
+
+@app.route('/api/admin/api_settings', methods=['GET', 'POST'])
+@admin_required
+def api_admin_api_settings():
+    """API: Manage API settings and update local / Render.com environment variables."""
+    from performance_manager import get_performance_manager
+    db_mgr = get_performance_manager()
+    
+    env_keys = [
+        "UPSTOX_API_KEY",
+        "UPSTOX_API_SECRET",
+        "UPSTOX_ACCESS_TOKEN",
+        "GEMINI_API_KEY",
+        "TELEGRAM_BOT_TOKEN",
+        "TELEGRAM_CHAT_ID",
+        "VT_TELEGRAM_BOT_TOKEN",
+        "VT_TELEGRAM_CHAT_ID"
+    ]
+    
+    if request.method == 'POST':
+        try:
+            data = request.json
+            
+            # Save Render details
+            render_api_key = data.get("render_api_key", "").strip()
+            render_service_id = data.get("render_service_id", "").strip()
+            
+            # Only update if user provided values (or if they cleared them)
+            if render_api_key and render_api_key != "••••••••":
+                db_mgr.set_setting("render_api_key", render_api_key)
+            elif render_api_key == "":
+                db_mgr.set_setting("render_api_key", "")
+                
+            if render_service_id:
+                db_mgr.set_setting("render_service_id", render_service_id)
+                
+            # Process environment variables
+            updated_vars = []
+            for key in env_keys:
+                val = data.get(key)
+                if val is not None:
+                    val = val.strip()
+                    # Skip if value is masked placeholder "••••••••"
+                    if val == "••••••••":
+                        continue
+                    # Call the env update helper
+                    update_env_variable(key, val)
+                    updated_vars.append(key)
+                    
+            return jsonify({
+                "status": "success",
+                "success": True,
+                "message": f"API settings saved successfully. Updated variables: {', '.join(updated_vars)}"
+            })
+        except Exception as e:
+            return jsonify({"error": str(e), "success": False}), 500
+    else:
+        # GET request
+        render_api_key = db_mgr.get_setting("render_api_key", "")
+        render_service_id = db_mgr.get_setting("render_service_id", "")
+        
+        # Return settings. Mask secret values.
+        resp_data = {
+            "render_api_key": "••••••••" if render_api_key else "",
+            "render_service_id": render_service_id,
+        }
+        
+        # Check env variables
+        for key in env_keys:
+            val = os.getenv(key, "")
+            resp_data[key] = "••••••••" if val else ""
+            
+        return jsonify(resp_data)
 
 
 @app.route('/api/virtual_trades')

@@ -240,6 +240,7 @@ class _DhanHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authCtrl = Get.find<AuthController>();
+    final controller = Get.find<DashboardController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final name = authCtrl.user.value?.name ?? 'Trader';
 
@@ -298,10 +299,45 @@ class _DhanHeader extends StatelessWidget {
           ),
           Row(
             children: [
+              Obx(() => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                height: 32,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: isDark ? Colors.white24 : Colors.black12),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: controller.rxProvider.value,
+                    dropdownColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'upstox',
+                        child: Text('🇮🇳 NSE/MCX'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'delta',
+                        child: Text('🪙 Crypto'),
+                      ),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        controller.toggleProvider(val);
+                      }
+                    },
+                  ),
+                ),
+              )),
+              const SizedBox(width: 12),
               Icon(Icons.wifi, color: isDark ? Colors.white70 : Colors.black54, size: 20),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Icon(Icons.notifications_none_rounded, color: isDark ? Colors.white70 : Colors.black54, size: 22),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               GestureDetector(
                 onTap: onSearchTap,
                 child: Icon(Icons.search_rounded, color: isDark ? Colors.white70 : Colors.black54, size: 22),

@@ -61,7 +61,11 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         upper == 'BSEBANKEX' ||
         upper == 'BANKEX' ||
         upper == 'MIDCPNIFTY' ||
-        upper == 'NIFTYMIDSELECT') {
+        upper == 'NIFTYMIDSELECT' ||
+        upper == 'BTC' ||
+        upper == 'ETH' ||
+        upper == 'BTCUSDT' ||
+        upper == 'ETHUSDT') {
       return true;
     }
     // Commodities segment support
@@ -432,7 +436,23 @@ class _IndexDetailViewState extends State<_IndexDetailView> with SingleTickerPro
   // Get parameters based on index
   Map<String, dynamic> _getIndexSpecs() {
     final sym = widget.symbol.toUpperCase().replaceAll(' ', '').replaceAll('_', '').replaceAll('-', '');
-    if (sym == 'SENSEX' || sym == 'BSESENSEX') {
+    if (sym == 'BTC' || sym == 'BTCUSDT') {
+      return {
+        'name': 'Bitcoin Perpetual',
+        'exchange': 'DELTA',
+        'lotSize': 0.001,
+        'strikeInterval': 100,
+        'defaultSpot': 65000.0,
+      };
+    } else if (sym == 'ETH' || sym == 'ETHUSDT') {
+      return {
+        'name': 'Ethereum Perpetual',
+        'exchange': 'DELTA',
+        'lotSize': 0.01,
+        'strikeInterval': 10,
+        'defaultSpot': 3500.0,
+      };
+    } else if (sym == 'SENSEX' || sym == 'BSESENSEX') {
       return {
         'name': 'Sensex',
         'exchange': 'BSE',
@@ -574,6 +594,16 @@ class _IndexDetailViewState extends State<_IndexDetailView> with SingleTickerPro
       }
       
       // Default fallback
+      final provider = Get.find<DashboardController>().rxProvider.value;
+      if (provider == 'delta') {
+        return {
+          'name': 'Bitcoin Perpetual',
+          'exchange': 'DELTA',
+          'lotSize': 0.001,
+          'strikeInterval': 100,
+          'defaultSpot': 65000.0,
+        };
+      }
       return {
         'name': 'Nifty 50',
         'exchange': 'NSE',

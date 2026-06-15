@@ -929,6 +929,67 @@ def admin_page():
                         </p>
                     </div>
                 </div>
+
+                <div class="card">
+                    <h3 class="card-title">🔑 API Configuration (Render & Local Env)</h3>
+                    <p style="color: rgba(255,255,255,0.5); margin-bottom: 20px;">
+                        Configure Render.com deployment parameters and update environment variables in real-time.
+                    </p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label>Render API Key (Bearer Token)</label>
+                            <input type="password" id="settingsRenderApiKey" placeholder="rnd_...">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label>Render Service ID</label>
+                            <input type="text" id="settingsRenderServiceId" placeholder="srv-...">
+                        </div>
+                    </div>
+                    
+                    <h4 style="font-size: 15px; margin-bottom: 12px; color: #a855f7; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; margin-top: 20px;">System Environment Variables</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label>Upstox API Key</label>
+                            <input type="text" id="envUpstoxApiKey" placeholder="UPSTOX_API_KEY">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label>Upstox API Secret</label>
+                            <input type="password" id="envUpstoxApiSecret" placeholder="UPSTOX_API_SECRET">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label>Upstox Access Token</label>
+                            <input type="password" id="envUpstoxAccessToken" placeholder="UPSTOX_ACCESS_TOKEN">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label>Gemini API Key</label>
+                            <input type="password" id="envGeminiApiKey" placeholder="GEMINI_API_KEY">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label>Telegram Bot Token (Signals)</label>
+                            <input type="password" id="envTelegramBotToken" placeholder="TELEGRAM_BOT_TOKEN">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label>Telegram Chat ID (Signals)</label>
+                            <input type="text" id="envTelegramChatId" placeholder="TELEGRAM_CHAT_ID">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label>Telegram Bot Token (Virtual Trading)</label>
+                            <input type="password" id="envVtTelegramBotToken" placeholder="VT_TELEGRAM_BOT_TOKEN">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label>Telegram Chat ID (Virtual Trading)</label>
+                            <input type="text" id="envVtTelegramChatId" placeholder="VT_TELEGRAM_CHAT_ID">
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-assign" onclick="saveApiSettings()">💾 Save API Keys & Sync</button>
+                </div>
             </div>
         </main>
     </div>
@@ -1053,6 +1114,22 @@ def admin_page():
                 document.getElementById('currentUpiId').textContent = settings.upi_id || '-';
                 document.getElementById('currentUpiName').textContent = settings.upi_name || '-';
             } catch(e) { console.error(e); }
+            
+            try {
+                const apiRes = await fetch('/api/admin/api_settings');
+                const apiData = await apiRes.json();
+                
+                document.getElementById('settingsRenderApiKey').value = apiData.render_api_key || '';
+                document.getElementById('settingsRenderServiceId').value = apiData.render_service_id || '';
+                document.getElementById('envUpstoxApiKey').value = apiData.UPSTOX_API_KEY || '';
+                document.getElementById('envUpstoxApiSecret').value = apiData.UPSTOX_API_SECRET || '';
+                document.getElementById('envUpstoxAccessToken').value = apiData.UPSTOX_ACCESS_TOKEN || '';
+                document.getElementById('envGeminiApiKey').value = apiData.GEMINI_API_KEY || '';
+                document.getElementById('envTelegramBotToken').value = apiData.TELEGRAM_BOT_TOKEN || '';
+                document.getElementById('envTelegramChatId').value = apiData.TELEGRAM_CHAT_ID || '';
+                document.getElementById('envVtTelegramBotToken').value = apiData.VT_TELEGRAM_BOT_TOKEN || '';
+                document.getElementById('envVtTelegramChatId').value = apiData.VT_TELEGRAM_CHAT_ID || '';
+            } catch(e) { console.error(e); }
         }
         
         async function updateUpiSettings() {
@@ -1077,6 +1154,48 @@ def admin_page():
                 document.getElementById('currentUpiName').textContent = upiName;
             } else {
                 alert('Failed to update settings');
+            }
+        }
+
+        async function saveApiSettings() {
+            const renderApiKey = document.getElementById('settingsRenderApiKey').value;
+            const renderServiceId = document.getElementById('settingsRenderServiceId').value;
+            const upstoxApiKey = document.getElementById('envUpstoxApiKey').value;
+            const upstoxApiSecret = document.getElementById('envUpstoxApiSecret').value;
+            const upstoxAccessToken = document.getElementById('envUpstoxAccessToken').value;
+            const geminiApiKey = document.getElementById('envGeminiApiKey').value;
+            const telegramBotToken = document.getElementById('envTelegramBotToken').value;
+            const telegramChatId = document.getElementById('envTelegramChatId').value;
+            const vtTelegramBotToken = document.getElementById('envVtTelegramBotToken').value;
+            const vtTelegramChatId = document.getElementById('envVtTelegramChatId').value;
+            
+            const payload = {
+                render_api_key: renderApiKey,
+                render_service_id: renderServiceId,
+                UPSTOX_API_KEY: upstoxApiKey,
+                UPSTOX_API_SECRET: upstoxApiSecret,
+                UPSTOX_ACCESS_TOKEN: upstoxAccessToken,
+                GEMINI_API_KEY: geminiApiKey,
+                TELEGRAM_BOT_TOKEN: telegramBotToken,
+                TELEGRAM_CHAT_ID: telegramChatId,
+                VT_TELEGRAM_BOT_TOKEN: vtTelegramBotToken,
+                VT_TELEGRAM_CHAT_ID: vtTelegramChatId
+            };
+            
+            try {
+                const res = await fetch('/api/admin/api_settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('API Configuration saved and synced successfully!');
+                } else {
+                    alert('Failed to save settings: ' + (data.error || 'Unknown error'));
+                }
+            } catch(e) {
+                alert('Request failed: ' + e);
             }
         }
         

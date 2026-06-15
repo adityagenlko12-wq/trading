@@ -183,4 +183,30 @@ class TradeRepository {
       rethrow;
     }
   }
+
+  Future<String> getProvider() async {
+    try {
+      final response = await apiClient.get('/api/provider');
+      final dynamic data = response.data;
+      if (data is Map && data.containsKey('provider')) {
+        return data['provider'].toString();
+      }
+      return 'upstox';
+    } catch (e) {
+      return 'upstox';
+    }
+  }
+
+  Future<bool> setProvider(String provider) async {
+    try {
+      final response = await apiClient.post('/api/provider', data: {'provider': provider});
+      final dynamic data = response.data;
+      if (data is Map && data['status'] == 'success') {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
 }

@@ -1266,7 +1266,7 @@ def api_save_order(symbol_id):
                 price = 100.0
                 
         symbol_upper = symbol_id.upper()
-        is_option = any(kw in symbol_upper for kw in ["CALL", "PUT", "CE", "PE"]) or (" " in symbol_id and any(kw in symbol_upper for kw in ["JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC", "JAN", "FEB", "MAR", "APR", "MAY"]))
+        is_option = any(kw in symbol_upper for kw in ["CALL", "PUT", "CE", "PE"]) or symbol_upper.startswith("C-") or symbol_upper.startswith("P-") or (" " in symbol_id and any(kw in symbol_upper for kw in ["JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC", "JAN", "FEB", "MAR", "APR", "MAY"]))
         
         from virtual_trader import get_virtual_trader
         trader = get_virtual_trader()
@@ -1286,17 +1286,30 @@ def api_save_order(symbol_id):
                 lot_size = 75
             elif "NIFTY" in symbol_upper:
                 lot_size = 75
+            elif symbol_upper.startswith("C-") or symbol_upper.startswith("P-"):
+                parts = symbol_upper.split("-")
+                if len(parts) >= 2:
+                    asset = parts[1]
+                    lot_size = 0.001 if asset == "BTC" else 0.01
                 
             # Parse strike price from symbol name
             import re
             strike = 0
-            strike_match = re.search(r'\b\d{5}\b|\b\d{4}\b', symbol_id)
-            if strike_match:
-                strike = int(strike_match.group(0))
+            if symbol_upper.startswith("C-") or symbol_upper.startswith("P-"):
+                parts = symbol_upper.split("-")
+                if len(parts) >= 3:
+                    try:
+                        strike = int(float(parts[2]))
+                    except ValueError:
+                        pass
+            else:
+                strike_match = re.search(r'\b\d{5}\b|\b\d{4}\b', symbol_id)
+                if strike_match:
+                    strike = int(strike_match.group(0))
                 
             # If placing buy order
             if order_side == '1':
-                signal_type = "CALL" if ("CALL" in symbol_upper or "CE" in symbol_upper) else "PUT"
+                signal_type = "CALL" if ("CALL" in symbol_upper or "CE" in symbol_upper or symbol_upper.startswith("C-")) else "PUT"
                 success, msg = trader.place_user_order(
                     user_email=user['email'],
                     symbol=symbol_id,

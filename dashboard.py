@@ -4080,8 +4080,10 @@ def api_admin_api_settings():
                 # Update locally first
                 update_local_env_variables(updates)
                 
-                # Sync batch to Render.com
-                sync_env_variables_to_render(updates)
+                # Sync batch to Render.com in a background thread to prevent connection cuts during restart
+                import threading
+                t = threading.Thread(target=sync_env_variables_to_render, args=(updates,))
+                t.start()
                 
             return jsonify({
                 "status": "success",

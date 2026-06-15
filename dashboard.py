@@ -3946,57 +3946,88 @@ def api_admin_configure_wallet():
         return jsonify({"error": str(e)}), 500
 
 
-def update_env_variable(key: str, value: str):
-    """Update process environment, local .env file, and Render.com if configured."""
+def update_local_env_variables(updates: dict):
+    """Update active process environment and local .env file."""
     import os
-    import requests
-    from performance_manager import get_performance_manager
-    db_mgr = get_performance_manager()
-    
-    # 1. Update active process environment
-    os.environ[key] = value
-    
-    # 2. Update local .env file
+    for key, value in updates.items():
+        os.environ[key] = value
+        
+    # Update local .env file
     try:
         env_lines = []
         if os.path.exists(".env"):
             with open(".env", "r") as f:
                 env_lines = f.readlines()
-        
-        key_found = False
+                
+        existing_keys = {}
         for idx, line in enumerate(env_lines):
-            if line.strip().startswith(f"{key}="):
+            stripped = line.strip()
+            if stripped and "=" in stripped and not stripped.startswith("#"):
+                k = stripped.split("=")[0].strip()
+                existing_keys[k] = idx
+                
+        for key, value in updates.items():
+            if key in existing_keys:
+                idx = existing_keys[key]
                 env_lines[idx] = f"{key}={value}\n"
-                key_found = True
-                break
-        if not key_found:
-            env_lines.append(f"{key}={value}\n")
-            
+            else:
+                env_lines.append(f"{key}={value}\n")
+                
         with open(".env", "w") as f:
             f.writelines(env_lines)
     except Exception as e:
         logger.error(f"Error writing to .env: {e}")
-        
-    # 3. Update on Render.com if credentials are set
+
+
+def sync_env_variables_to_render(updates: dict):
+    """Sync a batch of environment variables to Render.com using read-modify-write to prevent mid-flight connection cuts."""
+    from performance_manager import get_performance_manager
+    db_mgr = get_performance_manager()
     render_api_key = db_mgr.get_setting("render_api_key", "")
     render_service_id = db_mgr.get_setting("render_service_id", "")
     
-    if render_api_key and render_service_id:
-        url = f"https://api.render.com/v1/services/{render_service_id}/env-vars/{key}"
-        headers = {
-            "Authorization": f"Bearer {render_api_key}",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
-        data = {"value": value}
-        try:
-            resp = requests.put(url, json=data, headers=headers, timeout=10)
-            if resp.status_code not in (200, 201):
-                logger.error(f"Render.com env-vars update failed: {resp.status_code} - {resp.text}")
-                raise Exception(f"Render API error {resp.status_code}: {resp.text}")
-        except Exception as e:
-            logger.error(f"Failed to update {key} on Render.com: {e}")
-            raise e
+    if not render_api_key or not render_service_id:
+        return
+        
+    import requests
+    headers = {
+        "Authorization": f"Bearer {render_api_key}",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+    
+    # 1. GET existing env vars
+    url = f"https://api.render.com/v1/services/{render_service_id}/env-vars"
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            logger.error(f"Failed to fetch Render env vars: {resp.status_code} - {resp.text}")
+            raise Exception(f"Failed to fetch existing Render env vars: {resp.text}")
+            
+        current_env_list = resp.json()
+        
+        # Create a dictionary of current keys/values
+        merged_vars = {}
+        for item in current_env_list:
+            ev = item.get("envVar", {})
+            if "key" in ev and "value" in ev:
+                merged_vars[ev["key"]] = ev["value"]
+                
+        # 2. Merge updates
+        for k, v in updates.items():
+            merged_vars[k] = v
+            
+        # 3. PUT merged env vars back to Render
+        payload = [{"envVar": {"key": k, "value": v}} for k, v in merged_vars.items()]
+        
+        put_resp = requests.put(url, json=payload, headers=headers, timeout=10)
+        if put_resp.status_code not in (200, 201):
+            logger.error(f"Failed to save Render env vars: {put_resp.status_code} - {put_resp.text}")
+            raise Exception(f"Render API save error: {put_resp.text}")
+            
+    except Exception as e:
+        logger.error(f"Error syncing to Render.com: {e}")
+        raise e
 
 
 @app.route('/api/admin/api_settings', methods=['GET', 'POST'])
@@ -4019,7 +4050,7 @@ def api_admin_api_settings():
     
     if request.method == 'POST':
         try:
-            data = request.json
+            data = request.json or {}
             
             # Save Render details
             render_api_key = data.get("render_api_key", "").strip()
@@ -4035,7 +4066,7 @@ def api_admin_api_settings():
                 db_mgr.set_setting("render_service_id", render_service_id)
                 
             # Process environment variables
-            updated_vars = []
+            updates = {}
             for key in env_keys:
                 val = data.get(key)
                 if val is not None:
@@ -4043,14 +4074,19 @@ def api_admin_api_settings():
                     # Skip if value is masked placeholder "••••••••"
                     if val == "••••••••":
                         continue
-                    # Call the env update helper
-                    update_env_variable(key, val)
-                    updated_vars.append(key)
+                    updates[key] = val
                     
+            if updates:
+                # Update locally first
+                update_local_env_variables(updates)
+                
+                # Sync batch to Render.com
+                sync_env_variables_to_render(updates)
+                
             return jsonify({
                 "status": "success",
                 "success": True,
-                "message": f"API settings saved successfully. Updated variables: {', '.join(updated_vars)}"
+                "message": f"API settings saved successfully. Updated variables: {', '.join(updates.keys())}"
             })
         except Exception as e:
             return jsonify({"error": str(e), "success": False}), 500

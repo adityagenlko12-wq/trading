@@ -125,7 +125,7 @@ class GeminiAnalyzer:
 
 ## SIGNAL DECISION RULES (FOLLOW STRICTLY):
 
-**IMPORTANT: You are a trading assistant. Traders need clear signals. Avoid NEUTRAL unless truly uncertain.**
+**IMPORTANT: NEUTRAL / NO TRADE is the default when evidence is incomplete, conflicting, stale or inconclusive. Never force CALL/PUT just to increase alert frequency. Confidence is a heuristic score, not a calibrated win probability.**
 
 ### WHEN TO GIVE **CALL** SIGNAL (BULLISH):
 Give CALL when 2 or more of these are true:

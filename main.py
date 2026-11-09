@@ -488,9 +488,9 @@ class AITradingSystem:
                             strike_price = s.get('strike_price') if isinstance(s, dict) else getattr(s, 'strike_price', 0)
                             if strike_price == entry_strike:
                                 if signal == 'CALL':
-                                    entry_premium = s.get('call_ltp') if isinstance(s, dict) else getattr(s, 'call_ltp', 100)
+                                    entry_premium = s.get('call_ltp') if isinstance(s, dict) else getattr(s, 'call_ltp', None)
                                 else:
-                                    entry_premium = s.get('put_ltp') if isinstance(s, dict) else getattr(s, 'put_ltp', 100)
+                                    entry_premium = s.get('put_ltp') if isinstance(s, dict) else getattr(s, 'put_ltp', None)
                                 if entry_premium is not None:
                                     entry_premium = float(entry_premium)
                                 break
@@ -698,6 +698,24 @@ class AITradingSystem:
             logger.info(f"⏸️ Already have open {signal_type_str} position on {index_name}, skipping")
             return
         
+        # Require an actual option quote before publishing an actionable alert
+        # or creating a paper position. Never invent a premium.
+        option_quote = next((
+            row for row in (strikes_data or [])
+            if (row.get("strike_price") if isinstance(row, dict) else getattr(row, "strike_price", None)) == signal.strike
+        ), None)
+        entry_premium = None
+        if option_quote is not None:
+            quote_key = "call_ltp" if signal_type_str == "CALL" else "put_ltp"
+            entry_premium = option_quote.get(quote_key) if isinstance(option_quote, dict) else getattr(option_quote, quote_key, None)
+        try:
+            entry_premium = float(entry_premium)
+        except (TypeError, ValueError):
+            entry_premium = 0.0
+        if not entry_premium > 0:
+            logger.warning("NO TRADE: missing valid option LTP for %s %s %s", index_name, signal_type_str, signal.strike)
+            return
+
         # Add to dashboard for chart arrows
         add_signal({
             "index": index_name,
@@ -731,17 +749,20 @@ class AITradingSystem:
             )
         
         # Open virtual trade for P&L tracking
-        virtual_trader.open_trade(
+        opened = virtual_trader.open_trade(
             index=index_name,
             signal_type=signal_type_str,
             strike=signal.strike,
             spot_price=spot_price,
-            entry_premium=100,  # Default premium
+            entry_premium=entry_premium,
             target_points=25,
             stop_loss_points=12,
             reasoning=f"[Rule-based] {reason[:100]}",
             market_context={"pcr": pcr_data.get('pcr_oi', 1.0), "vwap": vwap}
         )
+        if not opened:
+            logger.warning("Paper trade rejected; no executed paper position: %s %s %s", index_name, signal_type_str, signal.strike)
+            return
         logger.info(f"📈 Rule-based virtual trade opened: {signal_type_str} {index_name} {signal.strike}")
 
         # REAL TRADING EXECUTION (Rule-based fallback)

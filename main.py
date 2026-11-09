@@ -108,15 +108,11 @@ class AITradingSystem:
     async def _update_macro_context(self):
         """Update global news and macro sentiment."""
         try:
-            # For now, update with recent relevant events for Feb 2026
-            # In a production env, this would call a News API or search tool
-            self.global_sentiment = "Mixed (Bullish on Trade, Bearish on Tech)"
-            self.news_context = (
-                "India-US Trade Deal signed (Bullish for Pharma/Infra/Banks). "
-                "Global Tech sell-off ongoing (Bearish for IT). "
-                "RBI Policy meet expected Feb 6 (Wait & Watch tone). "
-                "US Fed holds rates at 3.50%."
-            )
+            # No hardcoded dated headlines: only verified, timestamped news should
+            # be passed to Gemini. A neutral/unknown macro context is safer than
+            # presenting stale headlines as if they were live.
+            self.global_sentiment = "Unknown (no verified live news feed)"
+            self.news_context = "No verified live news available; rely on current market data only."
             
             # Fetch real-time India VIX
             vix_price = await self.data_fetcher.get_spot_price("NSE_INDEX|India VIX")
@@ -132,7 +128,7 @@ class AITradingSystem:
         """Check if current time is within market hours (IST)."""
         timezone = pytz.timezone('Asia/Kolkata')
         now = datetime.now(timezone).time()
-        return self.market_open <= now <= self.market_close
+        return datetime.now(timezone).weekday() < 5 and self.market_open <= now <= self.market_close
     
     async def initialize(self):
         """Initialize the trading system."""
@@ -485,7 +481,7 @@ class AITradingSystem:
             else:
                 try:
                     # Try to fetch real entry premium from option chain
-                    entry_premium = 100  # Default fallback
+                    entry_premium = None  # Never invent an option execution price
                     if strikes_data and entry_strike > 0:
                         for s in strikes_data:
                             # Handle both dict and StrikeData object
@@ -495,13 +491,20 @@ class AITradingSystem:
                                     entry_premium = s.get('call_ltp') if isinstance(s, dict) else getattr(s, 'call_ltp', 100)
                                 else:
                                     entry_premium = s.get('put_ltp') if isinstance(s, dict) else getattr(s, 'put_ltp', 100)
-                                if entry_premium == 0 or entry_premium is None:
-                                    entry_premium = 100
+                                if entry_premium is not None:
+                                    entry_premium = float(entry_premium)
                                 break
                     
+                    if not entry_strike or entry_premium is None or entry_premium <= 0:
+                        logger.warning(
+                            "Skipping virtual trade: no valid live option LTP for %s %s %s",
+                            index_name, signal, entry_strike,
+                        )
+                        return
+
                     logger.info(f"💰💰💰 OPENING VIRTUAL TRADE NOW: {signal} {index_name} {entry_strike} @ ₹{entry_premium} 💰💰💰")
                     
-                    virtual_trader.open_trade(
+                    opened = virtual_trader.open_trade(
                         index=index_name,
                         signal_type=signal,
                         strike=entry_strike,
@@ -517,7 +520,10 @@ class AITradingSystem:
                             "resistance": resistance
                         }
                     )
-                    logger.info(f"✅✅✅ VIRTUAL TRADE OPENED SUCCESSFULLY! ✅✅✅")
+                    if not opened:
+                        logger.error("Virtual trade rejected for %s %s %s; no paper position created", index_name, signal, entry_strike)
+                        return
+                    logger.info("Virtual trade opened successfully")
 
                     # REAL TRADING EXECUTION
                     if SYSTEM_CONFIG.real_trading_enabled:

@@ -108,15 +108,11 @@ class AITradingSystem:
     async def _update_macro_context(self):
         """Update global news and macro sentiment."""
         try:
-            # For now, update with recent relevant events for Feb 2026
-            # In a production env, this would call a News API or search tool
-            self.global_sentiment = "Mixed (Bullish on Trade, Bearish on Tech)"
-            self.news_context = (
-                "India-US Trade Deal signed (Bullish for Pharma/Infra/Banks). "
-                "Global Tech sell-off ongoing (Bearish for IT). "
-                "RBI Policy meet expected Feb 6 (Wait & Watch tone). "
-                "US Fed holds rates at 3.50%."
-            )
+            # No hardcoded dated headlines: only verified, timestamped news should
+            # be passed to Gemini. A neutral/unknown macro context is safer than
+            # presenting stale headlines as if they were live.
+            self.global_sentiment = "Unknown (no verified live news feed)"
+            self.news_context = "No verified live news available; rely on current market data only."
             
             # Fetch real-time India VIX
             vix_price = await self.data_fetcher.get_spot_price("NSE_INDEX|India VIX")
@@ -132,7 +128,7 @@ class AITradingSystem:
         """Check if current time is within market hours (IST)."""
         timezone = pytz.timezone('Asia/Kolkata')
         now = datetime.now(timezone).time()
-        return self.market_open <= now <= self.market_close
+        return datetime.now(timezone).weekday() < 5 and self.market_open <= now <= self.market_close
     
     async def initialize(self):
         """Initialize the trading system."""
@@ -485,23 +481,30 @@ class AITradingSystem:
             else:
                 try:
                     # Try to fetch real entry premium from option chain
-                    entry_premium = 100  # Default fallback
+                    entry_premium = None  # Never invent an option execution price
                     if strikes_data and entry_strike > 0:
                         for s in strikes_data:
                             # Handle both dict and StrikeData object
                             strike_price = s.get('strike_price') if isinstance(s, dict) else getattr(s, 'strike_price', 0)
                             if strike_price == entry_strike:
                                 if signal == 'CALL':
-                                    entry_premium = s.get('call_ltp') if isinstance(s, dict) else getattr(s, 'call_ltp', 100)
+                                    entry_premium = s.get('call_ltp') if isinstance(s, dict) else getattr(s, 'call_ltp', None)
                                 else:
-                                    entry_premium = s.get('put_ltp') if isinstance(s, dict) else getattr(s, 'put_ltp', 100)
-                                if entry_premium == 0 or entry_premium is None:
-                                    entry_premium = 100
+                                    entry_premium = s.get('put_ltp') if isinstance(s, dict) else getattr(s, 'put_ltp', None)
+                                if entry_premium is not None:
+                                    entry_premium = float(entry_premium)
                                 break
                     
+                    if not entry_strike or entry_premium is None or entry_premium <= 0:
+                        logger.warning(
+                            "Skipping virtual trade: no valid live option LTP for %s %s %s",
+                            index_name, signal, entry_strike,
+                        )
+                        return
+
                     logger.info(f"💰💰💰 OPENING VIRTUAL TRADE NOW: {signal} {index_name} {entry_strike} @ ₹{entry_premium} 💰💰💰")
                     
-                    virtual_trader.open_trade(
+                    opened = virtual_trader.open_trade(
                         index=index_name,
                         signal_type=signal,
                         strike=entry_strike,
@@ -517,7 +520,10 @@ class AITradingSystem:
                             "resistance": resistance
                         }
                     )
-                    logger.info(f"✅✅✅ VIRTUAL TRADE OPENED SUCCESSFULLY! ✅✅✅")
+                    if not opened:
+                        logger.error("Virtual trade rejected for %s %s %s; no paper position created", index_name, signal, entry_strike)
+                        return
+                    logger.info("Virtual trade opened successfully")
 
                     # REAL TRADING EXECUTION
                     if SYSTEM_CONFIG.real_trading_enabled:
@@ -692,6 +698,24 @@ class AITradingSystem:
             logger.info(f"⏸️ Already have open {signal_type_str} position on {index_name}, skipping")
             return
         
+        # Require an actual option quote before publishing an actionable alert
+        # or creating a paper position. Never invent a premium.
+        option_quote = next((
+            row for row in (strikes_data or [])
+            if (row.get("strike_price") if isinstance(row, dict) else getattr(row, "strike_price", None)) == signal.strike
+        ), None)
+        entry_premium = None
+        if option_quote is not None:
+            quote_key = "call_ltp" if signal_type_str == "CALL" else "put_ltp"
+            entry_premium = option_quote.get(quote_key) if isinstance(option_quote, dict) else getattr(option_quote, quote_key, None)
+        try:
+            entry_premium = float(entry_premium)
+        except (TypeError, ValueError):
+            entry_premium = 0.0
+        if not entry_premium > 0:
+            logger.warning("NO TRADE: missing valid option LTP for %s %s %s", index_name, signal_type_str, signal.strike)
+            return
+
         # Add to dashboard for chart arrows
         add_signal({
             "index": index_name,
@@ -725,17 +749,20 @@ class AITradingSystem:
             )
         
         # Open virtual trade for P&L tracking
-        virtual_trader.open_trade(
+        opened = virtual_trader.open_trade(
             index=index_name,
             signal_type=signal_type_str,
             strike=signal.strike,
             spot_price=spot_price,
-            entry_premium=100,  # Default premium
+            entry_premium=entry_premium,
             target_points=25,
             stop_loss_points=12,
             reasoning=f"[Rule-based] {reason[:100]}",
             market_context={"pcr": pcr_data.get('pcr_oi', 1.0), "vwap": vwap}
         )
+        if not opened:
+            logger.warning("Paper trade rejected; no executed paper position: %s %s %s", index_name, signal_type_str, signal.strike)
+            return
         logger.info(f"📈 Rule-based virtual trade opened: {signal_type_str} {index_name} {signal.strike}")
 
         # REAL TRADING EXECUTION (Rule-based fallback)

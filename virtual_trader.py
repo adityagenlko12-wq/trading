@@ -121,8 +121,8 @@ class VirtualTrader:
     ) -> bool:
         """Compat/AI endpoint: Open trade for AI signals (defaults to admin)."""
         base_lot_size = LOT_SIZES.get(index.upper().replace(" ", "").replace("50", "").replace("BANK", "BANKNIFTY"), 75)
-        lot_count = 10
-        quantity = lot_count
+        from config import SYSTEM_CONFIG
+        quantity = max(1, int(SYSTEM_CONFIG.max_lots))
         
         success, msg = self.place_user_order(
             user_email=user_email,
@@ -324,11 +324,20 @@ class VirtualTrader:
         logger.info(f"📊 Option trade closed: {email} | {symbol} {signal_type} | P&L: ₹{pnl:,.2f}")
         return True
 
-    def check_and_update_trades(self, index: str, spot_price: float) -> List[Dict]:
-        """Check dynamic prices and close active option positions if targets/SLs are hit (trailing stop-loss)."""
+    def check_and_update_trades(self, index: str, spot_price: float, option_quotes: Optional[Dict[Tuple[str, int], float]] = None) -> List[Dict]:
+        """Update option trades only when actual option premiums are supplied.
+
+        Spot-price movements are NOT valid substitutes for option LTP. Without
+        verified instrument quotes, leave positions unchanged rather than create
+        fictional P&L or trigger false stop-loss/target exits.
+        """
         from performance_manager import get_performance_manager
         db_mgr = get_performance_manager()
         
+        if not option_quotes:
+            logger.warning("Option MTM skipped for %s: verified option LTP feed unavailable", index)
+            return []
+
         open_positions = db_mgr.get_all_open_positions()
         closed_trades = []
         
@@ -344,16 +353,15 @@ class VirtualTrader:
             quantity = pos["quantity"]
             lot_size = pos["lot_size"]
             
-            spot_at_entry = pos.get("spot_at_entry") or entry_price
-            
-            spot_change = spot_price - spot_at_entry
-            
-            if signal_type == 'CALL':
-                premium_change = spot_change * 0.5
-            else:
-                premium_change = -spot_change * 0.5
-                
-            current_premium = max(1.0, entry_price + premium_change)
+            # Keys are (CALL|PUT, strike). Caller must fetch fresh option quotes
+            # for the correct instrument AND expiry before passing them here.
+            live_quote = option_quotes.get((signal_type, int(strike)))
+            try:
+                current_premium = float(live_quote)
+            except (ValueError, TypeError):
+                continue
+            if current_premium <= 0:
+                continue
             current_pnl = (current_premium - entry_price) * quantity * lot_size
             
             target_price = pos.get("target_price", 0.0)
